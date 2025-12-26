@@ -1,25 +1,11 @@
 #include "systems.hpp"
-#include <ncurses.h>
+#include "renderer.hpp"
 #include <cmath>
+#include <algorithm>
 
 void MessageLog::add(std::string msg, ColorPair color) {
     messages.push_back({msg, color});
     if (messages.size() > max_messages) messages.pop_front();
-}
-
-void MessageLog::draw(int start_y) const {
-    int max_y, max_x;
-    getmaxyx(stdscr, max_y, max_x);
-    for (size_t i = 0; i < messages.size(); ++i) {
-        int current_y = start_y + (int)i;
-        if (current_y < max_y) {
-            wmove(stdscr, current_y, 0);
-            wclrtoeol(stdscr);
-            attron(COLOR_PAIR(static_cast<short>(messages[i].color)));
-            mvprintw(current_y, 0, " > %s", messages[i].text.c_str());
-            attroff(COLOR_PAIR(static_cast<short>(messages[i].color)));
-        }
-    }
 }
 
 EntityID Systems::get_entity_at(const Registry& reg, int x, int y) {
@@ -79,7 +65,7 @@ void Systems::check_level_up(Registry& reg, MessageLog& log, sol::state& lua) {
     }
 }
 
-void Systems::cast_fireball(Registry& reg, Dungeon& map, int dx, int dy, MessageLog& log) {
+void Systems::cast_fireball(Registry& reg, Dungeon& map, int dx, int dy, MessageLog& log, Renderer& renderer) {
     auto& s = reg.stats[reg.player_id];
     if (s.mana < 20) {
         log.add("Not enough mana!", ColorPair::Orc);
@@ -87,15 +73,29 @@ void Systems::cast_fireball(Registry& reg, Dungeon& map, int dx, int dy, Message
     }
     s.mana -= 20;
     Position p = reg.positions[reg.player_id];
-    for (int i = 1; i <= 4; ++i) {
+
+    for (int i = 1; i <= 6; ++i) {
         int tx = p.x + dx * i;
         int ty = p.y + dy * i;
-        if (!map.is_walkable(tx, ty)) break;
+
+        // VISUAL: Delegate to Renderer
+        renderer.animate_projectile(tx, ty, '*', ColorPair::Spell);
+
+        if (!map.is_walkable(tx, ty)) {
+            log.add("Fireball hits a wall.", ColorPair::Default);
+            break;
+        }
+
         EntityID target = get_entity_at(reg, tx, ty);
         if (target && target != reg.player_id) {
             reg.stats[target].hp -= 40;
-            log.add("Fireball hit!", ColorPair::Spell);
-            if (reg.stats[target].hp <= 0) reg.destroy_entity(target);
+            log.add("Fireball burns target!", ColorPair::Spell);
+
+            if (reg.stats[target].hp <= 0) {
+                log.add("Target incinerated.", ColorPair::Gold);
+                reg.destroy_entity(target);
+            }
+            break;
         }
     }
 }

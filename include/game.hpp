@@ -2,7 +2,8 @@
 #include "registry.hpp"
 #include "dungeon.hpp"
 #include "systems.hpp"
-#include "script_engine.hpp" // Added
+#include "script_engine.hpp"
+#include "renderer.hpp"
 #include <vector>
 
 class Game {
@@ -10,9 +11,10 @@ class Game {
     Dungeon map;
     MessageLog log;
     ScriptEngine scripts;
+    Renderer renderer; // The new renderer
 
     bool running = true;
-    bool debug_mode = false; // Added for -d flag
+    bool debug_mode = false;
     GameState state = GameState::Dungeon;
     int last_dx = 1, last_dy = 0;
     int depth = 1;
@@ -20,7 +22,7 @@ class Game {
     std::vector<ItemTag> inventory;
 
 public:
-    Game(bool debug = false); // Modified constructor
+    Game(bool debug = false);
     ~Game();
     void run();
 
@@ -30,9 +32,6 @@ private:
     void spawn_item(int x, int y, std::string script_path);
     void process_input();
     void render();
-    void render_dungeon();
-    void render_inventory();
-    void render_stats();
     void handle_input_inventory(int ch);
     void get_player_setup();
     bool handle_game_over();

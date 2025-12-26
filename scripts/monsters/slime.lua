@@ -1,12 +1,10 @@
 -- scripts/monsters/slime.lua
-
--- scripts/monsters/slime.lua
 function get_init_stats()
     return {
         hp = 10,
         damage = 2,
-        glyph = "s",     -- Ensure this is NOT empty
-        color = Slime,  -- Ensure 'Forest' is defined in game_colors in game.lua
+        glyph = "s",
+        color = Slime,
         type = "minion"
     }
 end

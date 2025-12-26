@@ -5,45 +5,25 @@
 #include <map>
 
 namespace fs = std::filesystem;
-Game::Game(bool debug) : map(80, 20), debug_mode(debug) {
-    initscr();
-    start_color();
-    noecho();
-    curs_set(0);
-    keypad(stdscr, TRUE);
 
-    // Initialize Script Engine
+// Constructor: Renderer initializes ncurses automatically
+Game::Game(bool debug) : map(80, 20), debug_mode(debug) {
     scripts.init_lua();
-    // Register the Log type here specifically since it relies on private Game logic/UI
+
+    // 1. Bind MessageLog (so 'log:add' works)
     scripts.lua.new_usertype<MessageLog>("Log", "add", [](MessageLog& l, std::string msg) { l.add(msg, ColorPair::Default); });
 
-    // 1. Load game.lua
     if (!scripts.load_script("scripts/game.lua")) {
-        clear();
-        attron(A_BOLD | A_REVERSE);
-        mvprintw(10, 20, " ! FATAL ERROR ! ");
-        mvprintw(12, 10, "scripts/game.lua is missing or broken.");
-        refresh(); getch(); endwin(); exit(1);
+        renderer.show_error("Failed to load 'scripts/game.lua'.\nCheck that the file exists and is valid.");
+        exit(1);
     }
 
-    // 2. AUTO-INDEXING COLOR SYSTEM
-    sol::table color_table = scripts.lua["game_colors"];
-    for (size_t i = 1; i <= color_table.size(); ++i) {
-        sol::table entry = color_table[i];
-
-        int id = static_cast<int>(i);
-        int fg = entry[1];
-        int bg = entry[2];
-        std::string name = entry[3];
-
-        init_pair(id, fg, bg);
-        scripts.lua[name] = id;
-    }
+    renderer.init_colors(scripts);
 
     sol::protected_function start_cfg_func = scripts.lua["get_start_config"];
     sol::table start_config = start_cfg_func();
 
-    scripts.discover_assets(); // Call the engine's discovery
+    scripts.discover_assets();
     get_player_setup();
 
     std::string first_level = start_config["start_level"];
@@ -51,7 +31,8 @@ Game::Game(bool debug) : map(80, 20), debug_mode(debug) {
     reset(true, first_level);
 }
 
-Game::~Game() { endwin(); }
+Game::~Game()
+{}
 
 void Game::get_player_setup() {
     clear(); echo(); curs_set(1);
@@ -66,7 +47,6 @@ void Game::get_player_setup() {
     while (true) {
         clear();
         mvprintw(5, 10, "--- SELECT YOUR CLASS ---");
-        // FIX: Access class_templates via the 'scripts' engine instance
         for (size_t i = 0; i < scripts.class_templates.size(); ++i) {
             if ((int)i == selection) attron(A_REVERSE);
             mvprintw(7 + i, 12, "[ %s ]", fs::path(scripts.class_templates[i]).stem().string().c_str());
@@ -83,7 +63,7 @@ void Game::get_player_setup() {
 }
 
 void Game::spawn_item(int x, int y, std::string script_path) {
-if (!scripts.load_script(script_path)) return;
+    if (!scripts.load_script(script_path)) return;
     EntityID id = reg.create_entity();
     reg.positions[id] = {x, y};
     sol::table data = scripts.lua["item_data"];
@@ -104,11 +84,9 @@ void Game::spawn_monster(int x, int y, std::string script_path) {
     sol::table s = init_func();
     reg.stats[id] = { s["hp"], s["hp"], 0, 0, s["damage"], 0, 1, 0 };
 
-    // FIX: Safely convert string glyph to char
     std::string glyph_str = s["glyph"].get<std::string>();
     char glyph = glyph_str.empty() ? '?' : glyph_str[0];
 
-    // FIX: Safely convert color to int (prevent invisible monsters)
     int cid = s["color"].get<int>();
     reg.renderables[id] = { glyph, static_cast<ColorPair>(cid == 0 ? 1 : cid) };
 
@@ -124,6 +102,7 @@ void Game::reset(bool full_reset, std::string level_script) {
     } else {
         depth = 1;
         inventory.clear();
+        last_dx = 1; last_dy = 0;
     }
 
     if (!level_script.empty()) current_level_script = level_script;
@@ -139,7 +118,6 @@ void Game::reset(bool full_reset, std::string level_script) {
     reg.next_id = 1;
     state = GameState::Dungeon;
 
-    // FIX: Use scripts engine
     scripts.load_script(current_level_script);
     sol::table config = scripts.lua["get_level_config"](depth);
 
@@ -152,7 +130,6 @@ void Game::reset(bool full_reset, std::string level_script) {
     reg.renderables[reg.player_id] = {'@', ColorPair::Player};
 
     if (full_reset) {
-        // FIX: Use scripts engine
         scripts.load_script(reg.player_class_script);
         sol::protected_function init_func = scripts.lua["get_init_stats"];
         sol::table s = init_func();
@@ -162,11 +139,9 @@ void Game::reset(bool full_reset, std::string level_script) {
     }
 
     std::random_device rd; std::mt19937 gen(rd());
-    // FIX: Use scripts.lua
     std::string next_level_path = scripts.lua["get_next_level"](depth);
 
     if (config["is_boss_level"].get_or(false)) {
-        // FIX: Use scripts.lua
         spawn_monster(map.rooms.back().center().x, map.rooms.back().center().y, scripts.lua["get_boss_script"](depth));
     } else {
         EntityID stairs = reg.create_entity();
@@ -175,7 +150,6 @@ void Game::reset(bool full_reset, std::string level_script) {
         reg.items[stairs] = {ItemType::Stairs, 0, next_level_path, ""};
     }
 
-    // FIX: Use scripts.lua
     sol::table monster_weights = scripts.lua["get_spawn_odds"](depth);
     sol::table item_weights = scripts.lua["get_loot_odds"](depth);
 
@@ -185,11 +159,9 @@ void Game::reset(bool full_reset, std::string level_script) {
         Position c = map.rooms[i].center();
         int roll = std::uniform_int_distribution<>(0, 10)(gen);
         if (roll < 3) {
-            // FIX: Use scripts helper
             std::string path = scripts.pick_from_weights(item_weights, gen);
             if (!path.empty()) spawn_item(c.x, c.y, path);
         } else if (roll < 7) {
-            // FIX: Use scripts helper
             std::string path = scripts.pick_from_weights(monster_weights, gen);
             if (!path.empty()) {
                 spawn_monster(c.x, c.y, path);
@@ -212,11 +184,17 @@ void Game::reset(bool full_reset, std::string level_script) {
 void Game::run() {
     while(running) {
         if (reg.stats[reg.player_id].hp <= 0) {
-            if (handle_game_over()) { reset(true, ""); continue; } else break;
+            if (handle_game_over()) {
+                sol::table config = scripts.lua["get_start_config"]();
+                std::string start_level = config["start_level"];
+                log.add(config["initial_log_message"]);
+
+                reset(true, start_level);
+                continue;
+            } else break;
         }
         if (reg.boss_id != 0 && !reg.positions.contains(reg.boss_id)) {
             if (handle_victory()) {
-                // FIX: Use scripts engine
                 scripts.load_script(current_level_script);
                 reset(false, scripts.lua["get_next_level"](depth));
                 continue;
@@ -236,16 +214,24 @@ void Game::process_input() {
     if (state == GameState::Dungeon) {
         int dx = 0, dy = 0; bool acted = false;
         if (ch == 'q') running = false;
-        else if (ch == KEY_UP) { dy = -1; acted = true; }
-        else if (ch == KEY_DOWN) { dy = 1; acted = true; }
-        else if (ch == KEY_LEFT) { dx = -1; acted = true; }
-        else if (ch == KEY_RIGHT) { dx = 1; acted = true; }
+        else if (ch == KEY_UP)    { dy = -1; acted = true; }
+        else if (ch == KEY_DOWN)  { dy = +1; acted = true; }
+        else if (ch == KEY_LEFT)  { dx = -1; acted = true; }
+        else if (ch == KEY_RIGHT) { dx = +1; acted = true; }
+        else if (ch == 'f' || ch == 'F') {
+            Systems::cast_fireball(reg, map, last_dx, last_dy, log, renderer);
+            acted = true;
+        }
 
         if (acted) {
+            if (dx != 0 || dy != 0) {
+                last_dx = dx;
+                last_dy = dy;
+            }
+
             Position& p = reg.positions[reg.player_id];
             EntityID target = Systems::get_entity_at(reg, p.x + dx, p.y + dy);
 
-            // FIX: Pass scripts.lua
             if (target && reg.stats.contains(target)) {
                 Systems::attack(reg, reg.player_id, target, log, scripts.lua);
             } else if (map.is_walkable(p.x + dx, p.y + dy)) {
@@ -260,7 +246,6 @@ void Game::process_input() {
                     reg.destroy_entity(target);
                 }
             }
-            // FIX: Pass scripts.lua
             Systems::move_monsters(reg, map, log, scripts.lua);
             map.update_fov(p.x, p.y, reg.stats[reg.player_id].fov_range);
         }
@@ -270,58 +255,23 @@ void Game::process_input() {
 }
 
 void Game::render() {
-    clear();
-    if (state == GameState::Dungeon) render_dungeon();
-    else if (state == GameState::Inventory) render_inventory();
-    else if (state == GameState::Stats) render_stats();
-    refresh();
-}
+    renderer.clear_screen();
 
-void Game::render_dungeon() {
-    scripts.load_script(current_level_script);
-    sol::table config = scripts.lua["get_level_config"](depth);
+    if (state == GameState::Dungeon) {
+        sol::table config = scripts.lua["get_level_config"](depth);
+        int wc = config["wall_color"].get_or(4);
+        int fc = config["floor_color"].get_or(1);
 
-    int wall_pair = config["wall_color"];
-    int floor_pair = config["floor_color"];
-
-    for (int y = 0; y < map.height; ++y) {
-        for (int x = 0; x < map.width; ++x) {
-            if (map.visible_tiles.count({x, y})) {
-                attron(COLOR_PAIR(map.grid[y][x] == '#' ? wall_pair : floor_pair));
-                mvaddch(y, x, map.grid[y][x]);
-                attroff(COLOR_PAIR(map.grid[y][x] == '#' ? wall_pair : floor_pair));
-            } else if (map.explored[y][x]) {
-                attron(COLOR_PAIR(8));
-                mvaddch(y, x, map.grid[y][x]);
-                attroff(COLOR_PAIR(8));
-            }
-        }
+        renderer.draw_dungeon(map, reg, log, reg.player_id, depth, wc, fc);
     }
-    for (auto const& [id, r] : reg.renderables) {
-        Position p = reg.positions[id];
-        if (id == reg.player_id || map.visible_tiles.count(p)) {
-            attron(COLOR_PAIR((short)r.color)); mvaddch(p.y, p.x, r.glyph); attroff(COLOR_PAIR((short)r.color));
-        }
+    else if (state == GameState::Inventory) {
+        renderer.draw_inventory(inventory);
     }
-    auto s = reg.stats[reg.player_id];
-    mvprintw(21, 0, "HP: %d/%d | MP: %d/%d | Depth: %d | [I]nv [C]har", s.hp, s.max_hp, s.mana, s.max_mana, depth);
-    log.draw(22);
-}
+    else if (state == GameState::Stats) {
+        renderer.draw_stats(reg, reg.player_id, reg.player_name);
+    }
 
-void Game::render_inventory() {
-    mvprintw(2, 10, "--- INVENTORY ---");
-    if (inventory.empty()) mvprintw(5, 12, "(Empty)");
-    else { for (size_t i = 0; i < inventory.size(); ++i) mvprintw(5 + i, 12, "%zu. %s", i + 1, inventory[i].name.c_str()); }
-    mvprintw(18, 10, "[1-9] Use | [ESC] Exit");
-}
-
-void Game::render_stats() {
-    auto s = reg.stats[reg.player_id];
-    mvprintw(2, 10, "--- STATS ---");
-    mvprintw(5, 12, "Name:   %s", reg.player_name.c_str());
-    mvprintw(6, 12, "Level:  %d", s.level);
-    mvprintw(7, 12, "Damage: %d", s.damage);
-    mvprintw(18, 10, "[ESC] Exit");
+    renderer.refresh_screen();
 }
 
 void Game::handle_input_inventory(int ch) {
@@ -331,10 +281,20 @@ void Game::handle_input_inventory(int ch) {
             auto& item = inventory[idx];
             if (scripts.load_script(item.script)) {
                 sol::protected_function on_use = scripts.lua["on_use"];
+
+                // FIXED: Capture the result and check for errors
                 auto use_res = on_use(reg.stats[reg.player_id], log);
+
                 if (use_res.valid()) {
+                    bool keep_item = false;
+                    // Optional: If lua returns true/false, we could decide to keep item?
+                    // For now, we assume use = consume.
                     inventory.erase(inventory.begin() + idx);
                     state = GameState::Dungeon;
+                } else {
+                    // CRITICAL: Print Lua error if potion fails
+                    sol::error err = use_res;
+                    log.add("Script Error: " + std::string(err.what()), ColorPair::Orc);
                 }
             }
         }
@@ -342,13 +302,33 @@ void Game::handle_input_inventory(int ch) {
 }
 
 bool Game::handle_game_over() {
-    clear(); attron(A_BOLD | COLOR_PAIR(3)); mvprintw(10, 30, " !!! YOU DIED !!! ");
-    mvprintw(15, 20, "Press 'r' to Restart"); refresh();
-    int choice = getch(); return (choice == 'r' || choice == 'R');
+    flushinp();
+    clear();
+    attron(A_BOLD | COLOR_PAIR(3));
+    mvprintw(10, 30, " !!! YOU DIED !!! ");
+    attroff(A_BOLD | COLOR_PAIR(3));
+    mvprintw(15, 20, "Press 'r' to Restart, 'q' to Quit");
+    refresh();
+
+    while (true) {
+        int choice = getch();
+        if (choice == 'r' || choice == 'R') return true;
+        if (choice == 'q' || choice == 'Q') return false;
+    }
 }
 
 bool Game::handle_victory() {
-    clear(); attron(A_BOLD | COLOR_PAIR(6)); mvprintw(10, 30, " !!! VICTORY !!! ");
-    mvprintw(15, 20, "Press 'r' to Continue"); refresh();
-    int choice = getch(); return (choice == 'r' || choice == 'R');
+    flushinp();
+    clear();
+    attron(A_BOLD | COLOR_PAIR(6));
+    mvprintw(10, 30, " !!! VICTORY !!! ");
+    attroff(A_BOLD | COLOR_PAIR(6));
+    mvprintw(15, 20, "Press 'c' to Continue, 'q' to Quit");
+    refresh();
+
+    while (true) {
+        int choice = getch();
+        if (choice == 'c' || choice == 'C') return true;
+        if (choice == 'q' || choice == 'Q') return false;
+    }
 }

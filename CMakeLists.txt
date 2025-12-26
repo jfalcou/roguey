@@ -9,12 +9,13 @@ find_package(Lua REQUIRED)
 
 
 set(SOURCES
-    src/main.cpp
     src/dungeon.cpp
-    src/systems.cpp
-    src/registry.cpp
     src/game.cpp
+    src/main.cpp
+    src/registry.cpp
+    src/renderer.cpp
     src/script_engine.cpp
+    src/systems.cpp
 )
 
 add_executable(rogue_game ${SOURCES})
