@@ -1,4 +1,9 @@
--- scripts/game.lua
+--==================================================================================================
+--  Roguey
+--  Copyright : Joel FALCOU
+--  SPDX-License-Identifier: MIT
+--==================================================================================================
+
 game_colors = {
     -- { FG, BG, "GlobalName" }
     { 7, 0, "Default" },
@@ -31,7 +36,7 @@ function get_start_config()
         start_level = "scripts/levels/forest.lua",
         start_depth = 1,
         initial_log_message = "Welcome adventurer !",
-        window_width = 80,
-        window_height = 24
+        window_width = 100,
+        window_height = 48
     }
 end

@@ -16,21 +16,13 @@ void ScriptEngine::init_lua()
   lua.new_usertype<Position>("Position", "x", &Position::x, "y", &Position::y);
   lua.new_usertype<Stats>("Stats", "hp", &Stats::hp, "max_hp", &Stats::max_hp, "mana", &Stats::mana, "max_mana",
                           &Stats::max_mana, "damage", &Stats::damage, "xp", &Stats::xp, "level", &Stats::level, "fov",
-                          &Stats::fov_range // Add this if you want to mod vision!
-  );
+                          &Stats::fov_range);
 
-  // We register MessageLog in Game because it depends on ncurses logic,
-  // or we can pass a lambda to Lua in Game::init_lua if we keep the registration there.
-  // For now, let's keep the ColorPair enum registration here.
-
-  lua.new_enum<ColorPair>(
-    "ColorPair",
-    {
-      {"Default", ColorPair::Default},
-      {"Player", ColorPair::Player},
-      {"Wall", ColorPair::Wall},
-      // ... (Lua uses the global variables injected by Game for names, but this enum is good for type safety)
-    });
+  lua.new_enum<ColorPair>("ColorPair", {
+                                         {"Default", ColorPair::Default},
+                                         {"Player", ColorPair::Player},
+                                         {"Wall", ColorPair::Wall},
+                                       });
 }
 
 void ScriptEngine::discover_assets()

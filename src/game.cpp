@@ -95,26 +95,49 @@ void Game::spawn_item(int x, int y, std::string script_path)
   reg.names[id] = data["name"];
 }
 
-void Game::spawn_monster(int x, int y, std::string script_path)
+bool Game::spawn_monster(int x, int y, std::string script_path)
 {
-  if (!scripts.load_script(script_path)) return;
+  if (debug_mode) { log.add("Spawning: " + script_path, ColorPair::Orc); }
+  if (!scripts.load_script(script_path))
+  {
+    // Log the error to the in-game log so you can see it!
+    log.add("Error: Could not load " + script_path, ColorPair::Orc);
+    return false;
+  }
+
   EntityID id = reg.create_entity();
   reg.positions[id] = {x, y};
   reg.script_paths[id] = script_path;
   reg.monsters.push_back(id);
+
   sol::protected_function init_func = scripts.lua["get_init_stats"];
-  sol::table s = init_func();
+  auto result = init_func();
+
+  // Check if the Lua function execution succeeded
+  if (!result.valid())
+  {
+    sol::error err = result;
+    log.add("Lua Error in " + script_path + ": " + std::string(err.what()), ColorPair::Orc);
+    reg.destroy_entity(id); // Cleanup
+    return false;
+  }
+
+  sol::table s = result;
   reg.stats[id] = {s["hp"], s["hp"], 0, 0, s["damage"], 0, 1, 0};
+
   std::string glyph_str = s["glyph"].get<std::string>();
   char glyph = glyph_str.empty() ? '?' : glyph_str[0];
-  int cid = s["color"].get<int>();
-  reg.renderables[id] = {glyph, static_cast<ColorPair>(cid == 0 ? 1 : cid)};
-  std::string m_type = s["type"];
 
+  int cid = s["color"].get_or(0); // Use get_or to prevent crash if color is missing
+  reg.renderables[id] = {glyph, static_cast<ColorPair>(cid == 0 ? 1 : cid)};
+
+  std::string m_type = s["type"];
   std::string name = s["name"].get_or(fs::path(script_path).stem().string());
   reg.names[id] = name;
 
   if (m_type == "boss") reg.boss_id = id;
+
+  return true;
 }
 
 void Game::reset(bool full_reset, std::string level_script)
@@ -144,7 +167,7 @@ void Game::reset(bool full_reset, std::string level_script)
   reg.names.clear();
   reg.boss_id = 0;
   reg.next_id = 1;
-  state = GameState::Dungeon;
+  state = game_state::Dungeon;
 
   scripts.load_script(current_level_script);
   sol::table config = scripts.lua["get_level_config"](depth);
@@ -202,8 +225,7 @@ void Game::reset(bool full_reset, std::string level_script)
       std::string path = scripts.pick_from_weights(monster_weights, gen);
       if (!path.empty())
       {
-        spawn_monster(c.x, c.y, path);
-        spawn_counts[fs::path(path).stem().string()]++;
+        if (spawn_monster(c.x, c.y, path)) spawn_counts[fs::path(path).stem().string()]++;
       }
     }
   }
@@ -253,23 +275,23 @@ void Game::process_input()
   int ch = getch();
   if (ch == 'i' || ch == 'I')
   {
-    state = (state == GameState::Inventory) ? GameState::Dungeon : GameState::Inventory;
+    state = (state == game_state::Inventory) ? game_state::Dungeon : game_state::Inventory;
     return;
   }
   if (ch == 'c' || ch == 'C')
   {
-    state = (state == GameState::Stats) ? GameState::Dungeon : GameState::Stats;
+    state = (state == game_state::Stats) ? game_state::Dungeon : game_state::Stats;
     return;
   }
   if (ch == 27) // ESC handling
   {
     // If in Dungeon, go to Help. Else close whatever screen is open (Inv/Stats/Help)
-    if (state == GameState::Dungeon) state = GameState::Help;
-    else state = GameState::Dungeon;
+    if (state == game_state::Dungeon) state = game_state::Help;
+    else state = game_state::Dungeon;
     return;
   }
 
-  if (state == GameState::Dungeon)
+  if (state == game_state::Dungeon)
   {
     int dx = 0, dy = 0;
     bool acted = false;
@@ -331,15 +353,15 @@ void Game::process_input()
       map.update_fov(p.x, p.y, reg.stats[reg.player_id].fov_range);
     }
   }
-  else if (state == GameState::Inventory) { handle_input_inventory(ch); }
-  // GameState::Help consumes input (ESC check above covers exit), so nothing else needed here.
+  else if (state == game_state::Inventory) { handle_input_inventory(ch); }
+  // game_state::Help consumes input (ESC check above covers exit), so nothing else needed here.
 }
 
 void Game::render()
 {
   renderer.clear_screen();
 
-  if (state == GameState::Dungeon)
+  if (state == game_state::Dungeon)
   {
     sol::table config = scripts.lua["get_level_config"](depth);
     int wc = config["wall_color"].get_or(4);
@@ -347,9 +369,9 @@ void Game::render()
     std::string lvl_name = config["name"].get_or<std::string>("Dungeon");
     renderer.draw_dungeon(map, reg, log, reg.player_id, depth, wc, fc, lvl_name);
   }
-  else if (state == GameState::Inventory) { renderer.draw_inventory(inventory, log); }
-  else if (state == GameState::Stats) { renderer.draw_stats(reg, reg.player_id, reg.player_name, log); }
-  else if (state == GameState::Help)
+  else if (state == game_state::Inventory) { renderer.draw_inventory(inventory, log); }
+  else if (state == game_state::Stats) { renderer.draw_stats(reg, reg.player_id, reg.player_name, log); }
+  else if (state == game_state::Help)
   {
     // Fetch help text from Lua
     std::string txt = scripts.lua["help_text"].get_or<std::string>("No help text defined in game.lua");
@@ -375,7 +397,7 @@ void Game::handle_input_inventory(int ch)
         if (use_res.valid())
         {
           inventory.erase(inventory.begin() + idx);
-          state = GameState::Dungeon;
+          state = game_state::Dungeon;
         }
         else
         {

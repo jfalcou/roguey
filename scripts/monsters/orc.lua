@@ -1,11 +1,11 @@
 function get_init_stats()
     return {
-        type = "minion",
-        hp = 30,
-        max_hp = 30,
+        color = Orc,
         damage = 8,
         glyph = "O",
-        color = Orc
+        hp = 30,
+        max_hp = 30,
+        type = "minion"
     }
 end
 

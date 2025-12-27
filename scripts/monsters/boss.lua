@@ -1,11 +1,10 @@
 function get_init_stats()
     return {
-        type = "boss",
-        hp = 300,
-        max_hp = 300,
+        color = Boss,
         damage = 25,
         glyph = "B",
-        color = 10     -- Corresponds to init_pair(10, COLOR_RED, ...) in C++
+        hp = 300,
+        type = "boss"
     }
 end
 

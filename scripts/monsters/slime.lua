@@ -1,10 +1,10 @@
 -- scripts/monsters/slime.lua
 function get_init_stats()
     return {
-        hp = 10,
+        color = Slime,
         damage = 2,
         glyph = "s",
-        color = Slime,
+        hp = 10,
         type = "minion"
     }
 end

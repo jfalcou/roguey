@@ -1,14 +1,21 @@
+//==================================================================================================
+/*
+  Roguey
+  Copyright : Joel FALCOU
+  SPDX-License-Identifier: MIT
+*/
+//==================================================================================================
 #pragma once
 #include <stdint.h>
 #include <string>
 #include <vector>
 
-enum class GameState
+enum class game_state
 {
   Dungeon,
   Inventory,
   Stats,
-  Help, // Added Help state
+  Help,
   GameOver,
   Victory
 };

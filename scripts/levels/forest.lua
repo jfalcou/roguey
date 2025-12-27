@@ -15,7 +15,11 @@ function get_next_level(depth)
 end
 
 function get_spawn_odds(depth)
-    return { ["scripts/monsters/slime.lua"] = 100 }
+    return {
+        ["scripts/monsters/slime.lua"] = 100,
+        ["scripts/monsters/boss.lua"] = 100,
+        ["scripts/monsters/orc.lua"] = 100
+    }
 end
 
 function get_loot_odds(depth)

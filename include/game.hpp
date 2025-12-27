@@ -16,7 +16,7 @@ class Game
 
   bool running = true;
   bool debug_mode = false;
-  GameState state = GameState::Dungeon;
+  game_state state = game_state::Dungeon;
   int last_dx = 1, last_dy = 0;
   int depth = 1;
   std::string current_level_script;
@@ -29,7 +29,7 @@ public:
 
 private:
   void reset(bool full_reset, std::string level_script = "");
-  void spawn_monster(int x, int y, std::string script_path);
+  bool spawn_monster(int x, int y, std::string script_path);
   void spawn_item(int x, int y, std::string script_path);
   void process_input();
   void render();
