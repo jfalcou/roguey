@@ -18,7 +18,6 @@ public:
   }
 
   using data_type::begin;
-  using data_type::data;
   using data_type::empty;
   using data_type::end;
   using data_type::size;

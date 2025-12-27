@@ -56,7 +56,13 @@ void ScriptEngine::discover_assets()
 
 bool ScriptEngine::load_script(std::string const& path)
 {
-  auto res = lua.safe_script_file(path, sol::script_pass_on_error);
+  // we expect script files to be located in a directory relative to the current executable location
+  const fs::path exe_path = fs::absolute(Systems::binary_path());
+  const auto exe_dir_path = exe_path.parent_path();
+  auto complete_path = exe_dir_path / path;
+  assert(fs::exists(complete_path));
+
+  auto res = lua.safe_script_file(complete_path.string(), sol::script_pass_on_error);
   return res.valid();
 }
 

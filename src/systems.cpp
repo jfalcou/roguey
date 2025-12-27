@@ -10,6 +10,26 @@
 #include <algorithm>
 #include <cmath>
 
+namespace Systems
+{
+  // NOTES: 
+  // - you can set it automatically using some non-standard functions, if you do so the setter is not necessary anymore
+  // - on windows there is a way to get program arguments from anywhere, I believe itś possible on linux too
+  // - I would have used a path here, but to avoid including filesystem in the header I'll use a string like you did in the rest of the code 
+  // - if you keep a variable like this, make sure it's never set from multiple thread, or add protection
+  static std::string current_binary_path; 
+
+  std::string binary_path()
+  {
+    return current_binary_path;
+  }
+
+  void set_binary_path(std::string_view new_path)
+  {
+    current_binary_path = new_path;
+  }
+}
+
 void MessageLog::add(std::string msg, std::string const& color)
 {
   messages.push_back({msg, color});

@@ -19,6 +19,7 @@ int main(int argc, char* argv[])
     if (arg == "-d") debug = true;
   }
 
+  Systems::set_binary_path(argv[0]);
   Game game(debug);
   game.run();
   return 0;
