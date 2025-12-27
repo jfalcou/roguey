@@ -24,5 +24,8 @@ function get_spawn_odds(depth)
 end
 
 function get_loot_odds(depth)
-    return { ["scripts/items/gold.lua"] = 100 }
+    return {
+        ["scripts/items/healing_potion.lua"] = 60,
+        ["scripts/items/gold.lua"] = 30
+    }
 end
