@@ -51,4 +51,6 @@ public:
 
 private:
   int clamp(int val, int min, int max);
+  int last_cam_x = 0;
+  int last_cam_y = 0;
 };

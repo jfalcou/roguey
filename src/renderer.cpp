@@ -202,6 +202,10 @@ void Renderer::draw_dungeon(Dungeon const& map,
     cam_y = clamp(cam_y, 0, map.height - view_h);
   }
 
+  // Update stored camera position for other effects (like projectiles)
+  last_cam_x = cam_x;
+  last_cam_y = cam_y;
+
   draw_borders(0, 0, view_w, frame_h, level_name, view_h + 2);
 
   int wall_pair = wall_color;
@@ -259,8 +263,12 @@ void Renderer::draw_dungeon(Dungeon const& map,
 
 void Renderer::animate_projectile(int x, int y, char glyph, ColorPair color)
 {
+  // Convert map coordinates to screen coordinates using the last camera position
+  int sx = x - last_cam_x + 1;
+  int sy = y - last_cam_y + 1;
+
   attron(COLOR_PAIR(static_cast<short>(color)) | A_BOLD);
-  mvaddch(y + 1, x + 1, glyph);
+  mvaddch(sy, sx, glyph);
   attroff(COLOR_PAIR(static_cast<short>(color)) | A_BOLD);
   refresh();
   napms(50);
