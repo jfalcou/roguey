@@ -261,9 +261,11 @@ void Game::process_input()
     state = (state == GameState::Stats) ? GameState::Dungeon : GameState::Stats;
     return;
   }
-  if (ch == 27)
+  if (ch == 27) // ESC handling
   {
-    state = GameState::Dungeon;
+    // If in Dungeon, go to Help. Else close whatever screen is open (Inv/Stats/Help)
+    if (state == GameState::Dungeon) state = GameState::Help;
+    else state = GameState::Dungeon;
     return;
   }
 
@@ -330,6 +332,7 @@ void Game::process_input()
     }
   }
   else if (state == GameState::Inventory) { handle_input_inventory(ch); }
+  // GameState::Help consumes input (ESC check above covers exit), so nothing else needed here.
 }
 
 void Game::render()
@@ -341,13 +344,17 @@ void Game::render()
     sol::table config = scripts.lua["get_level_config"](depth);
     int wc = config["wall_color"].get_or(4);
     int fc = config["floor_color"].get_or(1);
-
     std::string lvl_name = config["name"].get_or<std::string>("Dungeon");
-
     renderer.draw_dungeon(map, reg, log, reg.player_id, depth, wc, fc, lvl_name);
   }
   else if (state == GameState::Inventory) { renderer.draw_inventory(inventory, log); }
   else if (state == GameState::Stats) { renderer.draw_stats(reg, reg.player_id, reg.player_name, log); }
+  else if (state == GameState::Help)
+  {
+    // Fetch help text from Lua
+    std::string txt = scripts.lua["help_text"].get_or<std::string>("No help text defined in game.lua");
+    renderer.draw_help(log, txt);
+  }
 
   renderer.refresh_screen();
 }

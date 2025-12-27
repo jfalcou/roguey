@@ -15,6 +15,17 @@ game_colors = {
     { 3, 2, "Slime" }
 }
 
+help_text = [[
+  CONTROLS
+  --------
+  Arrow Keys : Move / Attack
+  i          : Open Inventory
+  c          : Character Stats
+  f          : Cast Fireball
+  ESC        : Open Help / Close Menus
+  q          : Quit Game
+]]
+
 function get_start_config()
     return {
         start_level = "scripts/levels/forest.lua",

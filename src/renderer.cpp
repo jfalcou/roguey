@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <locale.h>
 #include <ncurses.h>
+#include <sstream> // Added for stringstream
 
 namespace fs = std::filesystem;
 
@@ -14,6 +15,7 @@ Renderer::Renderer()
   noecho();
   curs_set(0);
   keypad(stdscr, TRUE);
+  set_escdelay(25);
   getmaxyx(stdscr, screen_height, screen_width);
 }
 
@@ -103,7 +105,6 @@ void Renderer::draw_borders(int sx, int sy, int w, int h, std::string const& tit
     for (int x = 1; x <= w; ++x) { mvaddch(real_sep_y, sx + x, ACS_HLINE); }
   }
 
-  // Title
   if (!title.empty())
   {
     std::string label = "[ " + title + " ]";
@@ -312,6 +313,33 @@ void Renderer::draw_stats(Registry const& reg, int player_id, std::string player
   draw_log(log, separator_y + 1, ui_height, ui_width + 1);
 }
 
+void Renderer::draw_help(MessageLog const& log, std::string const& help_text)
+{
+  int ui_width = screen_width - 2;
+  int ui_height = screen_height - 2;
+  int log_height = 6;
+  int separator_y = ui_height - log_height - 1;
+
+  draw_borders(0, 0, ui_width, ui_height, "HELP", separator_y);
+
+  // Parse and print line by line
+  int start_y = 4;
+  int start_x = 6;
+
+  std::stringstream ss(help_text);
+  std::string line;
+  int i = 0;
+  while (std::getline(ss, line, '\n'))
+  {
+    if (start_y + i >= separator_y - 1) break;
+    mvprintw(start_y + i, start_x, "%s", line.c_str());
+    i++;
+  }
+
+  mvprintw(separator_y - 1, 2, "[ESC] Back");
+  draw_log(log, separator_y + 1, ui_height, ui_width + 1);
+}
+
 void Renderer::draw_character_creation_header(MessageLog const& log)
 {
   clear();
@@ -325,7 +353,6 @@ void Renderer::draw_character_creation_header(MessageLog const& log)
   int upper_center_y = separator_y / 2;
   std::string prompt = "Enter your name: ";
 
-  // Center the prompt string vertically in the top section
   mvprintw(upper_center_y, (screen_width - 20) / 2, "%s", prompt.c_str());
 
   draw_log(log, separator_y + 1, ui_height, ui_width + 1);
@@ -345,10 +372,9 @@ void Renderer::draw_class_selection(std::vector<std::string> const& class_paths,
 
   draw_borders(0, 0, ui_width, ui_height, "CREATE YOUR HERO", separator_y);
 
-  // Added indication string
   std::string subtitle = "Select your Class";
 
-  int content_h = class_paths.size() + 2 + 2; // subtitle + spacing + items
+  int content_h = class_paths.size() + 2 + 2;
   int start_y = (separator_y - content_h) / 2;
   if (start_y < 1) start_y = 1;
 
@@ -363,7 +389,6 @@ void Renderer::draw_class_selection(std::vector<std::string> const& class_paths,
     int x_pos = (screen_width - display.length()) / 2;
 
     if ((int)i == selection) attron(A_REVERSE);
-    // Offset by 2 to account for subtitle
     mvprintw(start_y + 2 + i, x_pos, "%s", display.c_str());
     attroff(A_REVERSE);
   }
@@ -380,7 +405,6 @@ void Renderer::draw_game_over(MessageLog const& log)
   int log_height = 6;
   int separator_y = ui_height - log_height - 1;
 
-  // Title: GAME OVER
   draw_borders(0, 0, ui_width, ui_height, "GAME OVER", separator_y);
 
   int center_y = separator_y / 2;
@@ -405,7 +429,6 @@ void Renderer::draw_victory(MessageLog const& log)
   int log_height = 6;
   int separator_y = ui_height - log_height - 1;
 
-  // Title: VICTORY
   draw_borders(0, 0, ui_width, ui_height, "VICTORY", separator_y);
 
   int center_y = separator_y / 2;

@@ -26,7 +26,6 @@ public:
 
   void draw_log(MessageLog const& log, int start_y, int max_row, int max_col);
 
-  // Updated: Now takes level_name
   void draw_dungeon(Dungeon const& map,
                     Registry const& reg,
                     MessageLog const& log,
@@ -36,11 +35,13 @@ public:
                     int floor_color,
                     std::string const& level_name);
 
-  // Updated: Now takes title
   void draw_borders(int x, int y, int width, int height, std::string const& title = "", int separator_y = -1);
 
   void draw_inventory(std::vector<ItemTag> const& inventory, MessageLog const& log);
   void draw_stats(Registry const& reg, int player_id, std::string player_name, MessageLog const& log);
+
+  // Added draw_help
+  void draw_help(MessageLog const& log, std::string const& help_text);
 
   void draw_character_creation_header(MessageLog const& log);
   void draw_class_selection(std::vector<std::string> const& class_paths, int selection, MessageLog const& log);

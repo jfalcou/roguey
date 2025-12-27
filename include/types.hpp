@@ -8,6 +8,7 @@ enum class GameState
   Dungeon,
   Inventory,
   Stats,
+  Help, // Added Help state
   GameOver,
   Victory
 };
@@ -27,7 +28,6 @@ enum class ColorPair : short
   Boss
 };
 
-// Added Stairs type
 enum class ItemType
 {
   Gold,
