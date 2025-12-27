@@ -1,7 +1,8 @@
 ## -------------------------------------------------------------------------------------------------
-##  SPY - C++ Informations Broker
-##  Copyright: SPY Project Contributors
-##  SPDX-License-Identifier: BSL-1.0
+## Roguey
+## Copyright : Joel FALCOU
+## SPDX-License-Identifier: MIT
+##
 ## -------------------------------------------------------------------------------------------------
 BasedOnStyle: Microsoft
 AccessModifierOffset: -2

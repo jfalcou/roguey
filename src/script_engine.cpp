@@ -1,3 +1,10 @@
+//==================================================================================================
+/*
+  Roguey
+  Copyright : Joel FALCOU
+  SPDX-License-Identifier: MIT
+*/
+//==================================================================================================
 #include "script_engine.hpp"
 #include "systems.hpp"
 #include <filesystem>
