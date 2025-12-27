@@ -26,6 +26,6 @@ end
 function get_loot_odds(depth)
     return {
         ["scripts/items/healing_potion.lua"] = 60,
-        ["scripts/items/gold.lua"] = 30
+        ["scripts/items/gold.lua"] = 40
     }
 end

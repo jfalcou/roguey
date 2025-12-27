@@ -22,6 +22,9 @@ class Game
   MessageLog log;
   ScriptEngine scripts;
 
+  std::random_device random_bits;
+  std::mt19937 random_generator;
+
   bool running = true;
   bool debug_mode = false;
   game_state state = game_state::Dungeon;

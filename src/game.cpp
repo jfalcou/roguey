@@ -6,6 +6,7 @@
 */
 //==================================================================================================
 
+#include "dice.hpp"
 #include "game.hpp"
 #include <algorithm>
 #include <cctype>
@@ -16,7 +17,7 @@
 
 namespace fs = std::filesystem;
 
-Game::Game(bool debug) : map(80, 20), debug_mode(debug), scripts{"scripts/game.lua"}
+Game::Game(bool debug) : map(80, 20), debug_mode(debug), scripts{"scripts/game.lua"}, random_generator(random_bits())
 {
   if (!scripts.is_valid)
   {
@@ -25,6 +26,9 @@ Game::Game(bool debug) : map(80, 20), debug_mode(debug), scripts{"scripts/game.l
   }
 
   renderer.setup_window(scripts);
+
+  // Add a LUA function to roll dice
+  scripts.lua.set_function("roll", [prng = &random_generator](std::string const& dice) { return roll(dice, *prng); });
 
   get_player_setup();
 
@@ -92,6 +96,7 @@ void Game::spawn_item(int x, int y, std::string script_path)
 
   ItemType kind;
   std::string item_kind = data["kind"];
+  log.add("SPAWN::ITEM KIND : " + item_kind, "ui_failure");
   if (item_kind == "consumable") kind = ItemType::Consumable;
   else if (item_kind == "gold") kind = ItemType::Gold;
 
@@ -178,7 +183,7 @@ void Game::reset(bool full_reset, std::string level_script)
 
   map.width = config["width"];
   map.height = config["height"];
-  map.generate();
+  map.generate(random_generator);
 
   reg.player_id = reg.create_entity();
   reg.positions[reg.player_id] = map.rooms[0].center();
@@ -194,8 +199,6 @@ void Game::reset(bool full_reset, std::string level_script)
   }
   else { reg.stats[reg.player_id] = saved_stats; }
 
-  std::random_device rd;
-  std::mt19937 gen(rd());
   std::string next_level_path = scripts.lua["get_next_level"](depth);
 
   if (config["is_boss_level"].get_or(false))
@@ -216,15 +219,15 @@ void Game::reset(bool full_reset, std::string level_script)
   for (std::size_t i = 1; i < map.rooms.size() - 1; ++i)
   {
     Position c = map.rooms[i].center();
-    int roll = std::uniform_int_distribution<>(0, 10)(gen);
+    int roll = std::uniform_int_distribution<>(0, 10)(random_generator);
     if (roll < 3)
     {
-      std::string path = scripts.pick_from_weights(item_weights, gen);
+      std::string path = scripts.pick_from_weights(item_weights, random_generator);
       if (!path.empty()) spawn_item(c.x, c.y, path);
     }
     else if (roll < 7)
     {
-      std::string path = scripts.pick_from_weights(monster_weights, gen);
+      std::string path = scripts.pick_from_weights(monster_weights, random_generator);
       if (!path.empty())
       {
         if (spawn_monster(c.x, c.y, path)) spawn_counts[fs::path(path).stem().string()]++;

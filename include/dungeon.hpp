@@ -7,6 +7,7 @@
 //==================================================================================================
 #pragma once
 #include "types.hpp"
+#include <random>
 #include <set>
 #include <vector>
 
@@ -20,7 +21,7 @@ public:
   std::vector<Rect> rooms;
 
   Dungeon(int w, int h);
-  void generate();
+  void generate(std::mt19937& gen);
   void update_fov(int px, int py, int range);
   bool is_walkable(int x, int y) const;
 

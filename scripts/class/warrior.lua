@@ -10,8 +10,8 @@ end
 
 function level_up(stats)
     return {
-        hp = stats.hp + 30,
-        mp = stats.mp + 2,
-        damage = stats.damage + 5
+        hp = stats.hp + roll("2d10+5"),
+        mp = stats.mp + roll("d4"),
+        damage = stats.damage + roll("1D6")
     }
 end

@@ -13,10 +13,8 @@
 
 Dungeon::Dungeon(int w, int h) : width(w), height(h), grid(w, h, '#'), explored(w, h, false) {}
 
-void Dungeon::generate()
+void Dungeon::generate(std::mt19937& gen)
 {
-  std::random_device rd;
-  std::mt19937 gen(rd());
   std::uniform_int_distribution<> dis_w(6, 12), dis_h(4, 7), dis_x(1, width - 13), dis_y(1, height - 8);
   rooms.clear();
   grid = grid2D(width, height, '#');
