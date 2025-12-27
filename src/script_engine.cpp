@@ -1,12 +1,9 @@
 #include "script_engine.hpp"
-#include <iostream>
+#include <filesystem>
 
 namespace fs = std::filesystem;
 
-ScriptEngine::ScriptEngine()
-{
-  // Constructor intentionally empty, explicit init called by Game
-}
+ScriptEngine::ScriptEngine() {}
 
 void ScriptEngine::init_lua()
 {
@@ -21,23 +18,12 @@ void ScriptEngine::init_lua()
 
 void ScriptEngine::discover_assets()
 {
-  monster_templates.clear();
   class_templates.clear();
-  item_templates.clear();
-  if (fs::exists("scripts/monsters"))
-  {
-    for (auto const& entry : fs::directory_iterator("scripts/monsters"))
-      if (entry.path().extension() == ".lua") monster_templates.push_back(entry.path().string());
-  }
+
   if (fs::exists("scripts/class"))
   {
     for (auto const& entry : fs::directory_iterator("scripts/class"))
       if (entry.path().extension() == ".lua") class_templates.push_back(entry.path().string());
-  }
-  if (fs::exists("scripts/items"))
-  {
-    for (auto const& entry : fs::directory_iterator("scripts/items"))
-      if (entry.path().extension() == ".lua") item_templates.push_back(entry.path().string());
   }
 }
 

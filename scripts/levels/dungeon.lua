@@ -1,4 +1,9 @@
--- scripts/levels/dungeon.lua
+--==================================================================================================
+--  Roguey
+--  Copyright : Joel FALCOU
+--  SPDX-License-Identifier: MIT
+--==================================================================================================
+
 function get_level_config(depth)
     return {
         name = "Deep Dungeon",
@@ -11,11 +16,7 @@ function get_level_config(depth)
 end
 
 function get_next_level(depth)
-    if depth % 3 == 0 then
-        return "scripts/levels/forest.lua"
-    else
-        return "scripts/levels/dungeon.lua"
-    end
+    return "scripts/levels/dungeon.lua"
 end
 
 function get_boss_script(depth)

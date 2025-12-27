@@ -1,4 +1,9 @@
--- scripts/levels/forest.lua
+--==================================================================================================
+--  Roguey
+--  Copyright : Joel FALCOU
+--  SPDX-License-Identifier: MIT
+--==================================================================================================
+
 function get_level_config(depth)
     return {
         name = "Whispering Woods",

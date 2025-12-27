@@ -1,4 +1,9 @@
--- scripts/monsters/slime.lua
+--==================================================================================================
+--  Roguey
+--  Copyright : Joel FALCOU
+--  SPDX-License-Identifier: MIT
+--==================================================================================================
+
 function get_init_stats()
     return {
         color = entity_slime,

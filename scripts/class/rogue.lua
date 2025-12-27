@@ -4,15 +4,14 @@
 --  SPDX-License-Identifier: MIT
 --==================================================================================================
 
-item_data = {
-    name = "Healing Potion",
-    glyph = "!",
-    color = item_hp_potion
-}
+function get_init_stats()
+    return { hp = 90, mp = 15, damage = 10 }
+end
 
-function on_use(stats, log)
-    local heal_amount = 20
-    stats.hp = math.min(stats.max_hp, stats.hp + heal_amount)
-    log:add("You drink the potion and feel better!")
-    return true
+function level_up(stats)
+    return {
+        hp = stats.hp + 15,
+        mp = stats.mp + 5,
+        damage = stats.damage + 3
+    }
 end

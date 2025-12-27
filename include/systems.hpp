@@ -1,3 +1,10 @@
+//==================================================================================================
+/*
+  Roguey
+  Copyright : Joel FALCOU
+  SPDX-License-Identifier: MIT
+*/
+//==================================================================================================
 #pragma once
 #include "dungeon.hpp"
 #include "registry.hpp"
@@ -17,7 +24,7 @@ class MessageLog
 {
 public:
   std::vector<LogEntry> messages;
-  size_t const max_messages = 10;
+  std::size_t const max_messages = 10;
 
   void add(std::string msg, std::string const& color = "ui_default");
 };
