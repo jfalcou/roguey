@@ -4,11 +4,7 @@
 #include "dungeon.hpp"
 #include "registry.hpp"
 #include "script_engine.hpp"
-#include "systems.hpp" // For MessageLog
-
-// Assuming ItemTag is defined in types.hpp or similar.
-// If it was internal to Game, we might need to move it to types.hpp.
-// For now, we will forward declare or include types.
+#include "systems.hpp"
 #include "types.hpp"
 
 class Renderer {
@@ -16,7 +12,6 @@ public:
     Renderer();
     ~Renderer();
 
-    // loads colors from Lua "game_colors"
     void init_colors(ScriptEngine& scripts);
 
     void clear_screen();
@@ -32,4 +27,9 @@ public:
     void draw_borders(int width, int height);
     void draw_inventory(const std::vector<ItemTag>& inventory);
     void draw_stats(const Registry& reg, int player_id, std::string player_name);
+
+    void draw_character_creation_header();
+    void draw_class_selection(const std::vector<std::string>& class_paths, int selection);
+    void draw_game_over();
+    void draw_victory();
 };

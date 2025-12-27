@@ -6,7 +6,6 @@
 
 namespace fs = std::filesystem;
 
-// Constructor: Renderer initializes ncurses automatically
 Game::Game(bool debug) : map(80, 20), debug_mode(debug) {
     scripts.init_lua();
 
@@ -35,23 +34,22 @@ Game::~Game()
 {}
 
 void Game::get_player_setup() {
-    clear(); echo(); curs_set(1);
-    mvprintw(5, 10, "--- CHARACTER CREATION ---");
-    mvprintw(7, 10, "Enter your name: ");
-    refresh();
+    // Switch to input mode (echo on, cursor visible)
+    echo(); curs_set(1);
+
+    renderer.draw_character_creation_header();
+
     char name_buf[32]; getnstr(name_buf, 31);
     reg.player_name = std::string(name_buf).empty() ? "Hero" : name_buf;
+
+    // Switch back to game mode (echo off, cursor hidden)
     noecho(); curs_set(0);
 
     int selection = 0;
     while (true) {
-        clear();
-        mvprintw(5, 10, "--- SELECT YOUR CLASS ---");
-        for (size_t i = 0; i < scripts.class_templates.size(); ++i) {
-            if ((int)i == selection) attron(A_REVERSE);
-            mvprintw(7 + i, 12, "[ %s ]", fs::path(scripts.class_templates[i]).stem().string().c_str());
-            attroff(A_REVERSE);
-        }
+        // Delegate drawing the selection menu to renderer
+        renderer.draw_class_selection(scripts.class_templates, selection);
+
         int ch = getch();
         if (ch == KEY_UP && selection > 0) selection--;
         if (ch == KEY_DOWN && selection < (int)scripts.class_templates.size() - 1) selection++;
@@ -303,12 +301,7 @@ void Game::handle_input_inventory(int ch) {
 
 bool Game::handle_game_over() {
     flushinp();
-    clear();
-    attron(A_BOLD | COLOR_PAIR(3));
-    mvprintw(10, 30, " !!! YOU DIED !!! ");
-    attroff(A_BOLD | COLOR_PAIR(3));
-    mvprintw(15, 20, "Press 'r' to Restart, 'q' to Quit");
-    refresh();
+    renderer.draw_game_over();
 
     while (true) {
         int choice = getch();
@@ -319,12 +312,7 @@ bool Game::handle_game_over() {
 
 bool Game::handle_victory() {
     flushinp();
-    clear();
-    attron(A_BOLD | COLOR_PAIR(6));
-    mvprintw(10, 30, " !!! VICTORY !!! ");
-    attroff(A_BOLD | COLOR_PAIR(6));
-    mvprintw(15, 20, "Press 'c' to Continue, 'q' to Quit");
-    refresh();
+    renderer.draw_victory();
 
     while (true) {
         int choice = getch();

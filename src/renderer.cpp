@@ -1,6 +1,9 @@
 #include "renderer.hpp"
 #include <ncurses.h>
 #include <locale.h> // Required for UTF-8
+#include <filesystem> // Added for path processing in class selection
+
+namespace fs = std::filesystem;
 
 Renderer::Renderer() {
     setlocale(LC_ALL, ""); // ENABLE UTF-8 SUPPORT
@@ -95,7 +98,7 @@ void Renderer::draw_dungeon(const Dungeon& map, const Registry& reg, const Messa
                 mvaddch(y + 1, x + 1, map.grid[y][x]);
                 attroff(COLOR_PAIR(map.grid[y][x] == '#' ? wall_pair : floor_pair));
             } else if (map.explored[y][x]) {
-                attron(COLOR_PAIR(8));
+                attron(COLOR_PAIR(8)); // Hidden/Dark color
                 mvaddch(y + 1, x + 1, map.grid[y][x]);
                 attroff(COLOR_PAIR(8));
             }
@@ -121,7 +124,7 @@ void Renderer::draw_dungeon(const Dungeon& map, const Registry& reg, const Messa
 
     draw_log(log, map.height + 4, ui_height, ui_width);
 }
-// NEW: Moved from systems.cpp
+
 void Renderer::draw_log(const MessageLog& log, int start_y, int max_row, int max_col) {
     int max_y, max_x;
     getmaxyx(stdscr, max_y, max_x);
@@ -163,7 +166,6 @@ void Renderer::draw_log(const MessageLog& log, int start_y, int max_row, int max
     }
 }
 
-// NEW: Animation Helper
 void Renderer::animate_projectile(int x, int y, char glyph, ColorPair color) {
     // Note: x, y are logic coordinates. We need to shift +1,+1 for border.
     attron(COLOR_PAIR(static_cast<short>(color)) | A_BOLD);
@@ -174,8 +176,7 @@ void Renderer::animate_projectile(int x, int y, char glyph, ColorPair color) {
 }
 
 void Renderer::draw_inventory(const std::vector<ItemTag>& inventory) {
-    // Inventory uses its own full screen layout, so we don't border this for now
-    // or you could add draw_borders(80, 24) here too.
+    // Inventory uses its own full screen layout
     mvprintw(2, 10, "--- INVENTORY ---");
     if (inventory.empty()) mvprintw(5, 12, "(Empty)");
     else {
@@ -193,4 +194,47 @@ void Renderer::draw_stats(const Registry& reg, int player_id, std::string player
     mvprintw(6, 12, "Level:  %d", s.level);
     mvprintw(7, 12, "Damage: %d", s.damage);
     mvprintw(18, 10, "[ESC] Exit");
+}
+
+// --- New Modular Rendering Methods ---
+
+void Renderer::draw_character_creation_header() {
+    clear();
+    mvprintw(5, 10, "--- CHARACTER CREATION ---");
+    mvprintw(7, 10, "Enter your name: ");
+    refresh();
+}
+
+void Renderer::draw_class_selection(const std::vector<std::string>& class_paths, int selection) {
+    clear();
+    mvprintw(5, 10, "--- SELECT YOUR CLASS ---");
+    for (size_t i = 0; i < class_paths.size(); ++i) {
+        if ((int)i == selection) attron(A_REVERSE);
+
+        std::string name = fs::path(class_paths[i]).stem().string();
+        mvprintw(7 + i, 12, "[ %s ]", name.c_str());
+
+        attroff(A_REVERSE);
+    }
+    refresh();
+}
+
+void Renderer::draw_game_over() {
+    clear();
+    // Using ColorPair::Orc (3) for Game Over text
+    attron(A_BOLD | COLOR_PAIR(static_cast<short>(ColorPair::Orc)));
+    mvprintw(10, 30, " !!! YOU DIED !!! ");
+    attroff(A_BOLD | COLOR_PAIR(static_cast<short>(ColorPair::Orc)));
+    mvprintw(15, 20, "Press 'r' to Restart, 'q' to Quit");
+    refresh();
+}
+
+void Renderer::draw_victory() {
+    clear();
+    // Using ColorPair::Gold (6) for Victory text
+    attron(A_BOLD | COLOR_PAIR(static_cast<short>(ColorPair::Gold)));
+    mvprintw(10, 30, " !!! VICTORY !!! ");
+    attroff(A_BOLD | COLOR_PAIR(static_cast<short>(ColorPair::Gold)));
+    mvprintw(15, 20, "Press 'c' to Continue, 'q' to Quit");
+    refresh();
 }
