@@ -26,6 +26,8 @@ void Renderer::set_window_size(int w, int h)
 {
   screen_width = w;
   screen_height = h;
+  // Try to resize the physical terminal if possible, though often ignored by emulators
+  resize_term(h, w);
 }
 
 void Renderer::init_colors(ScriptEngine& scripts)
@@ -69,32 +71,37 @@ int Renderer::clamp(int val, int min, int max)
   return val;
 }
 
-void Renderer::draw_borders(int w, int h, int separator_y)
+void Renderer::draw_borders(int sx, int sy, int w, int h, int separator_y)
 {
   attron(COLOR_PAIR(0) | A_BOLD);
 
-  mvaddch(0, 0, ACS_ULCORNER);
-  mvaddch(0, w + 1, ACS_URCORNER);
-  mvaddch(h + 1, 0, ACS_LLCORNER);
-  mvaddch(h + 1, w + 1, ACS_LRCORNER);
+  // Corners
+  mvaddch(sy, sx, ACS_ULCORNER);
+  mvaddch(sy, sx + w + 1, ACS_URCORNER);
+  mvaddch(sy + h + 1, sx, ACS_LLCORNER);
+  mvaddch(sy + h + 1, sx + w + 1, ACS_LRCORNER);
 
+  // Horizontals
   for (int x = 1; x <= w; ++x)
   {
-    mvaddch(0, x, ACS_HLINE);
-    mvaddch(h + 1, x, ACS_HLINE);
+    mvaddch(sy, sx + x, ACS_HLINE);
+    mvaddch(sy + h + 1, sx + x, ACS_HLINE);
   }
 
+  // Verticals
   for (int y = 1; y <= h; ++y)
   {
-    mvaddch(y, 0, ACS_VLINE);
-    mvaddch(y, w + 1, ACS_VLINE);
+    mvaddch(sy + y, sx, ACS_VLINE);
+    mvaddch(sy + y, sx + w + 1, ACS_VLINE);
   }
 
+  // Separator
   if (separator_y > 0 && separator_y < h)
   {
-    mvaddch(separator_y, 0, ACS_LTEE);
-    mvaddch(separator_y, w + 1, ACS_RTEE);
-    for (int x = 1; x <= w; ++x) { mvaddch(separator_y, x, ACS_HLINE); }
+    int real_sep_y = sy + separator_y;
+    mvaddch(real_sep_y, sx, ACS_LTEE);
+    mvaddch(real_sep_y, sx + w + 1, ACS_RTEE);
+    for (int x = 1; x <= w; ++x) { mvaddch(real_sep_y, sx + x, ACS_HLINE); }
   }
 
   attroff(COLOR_PAIR(0) | A_BOLD);
@@ -162,6 +169,7 @@ void Renderer::draw_dungeon(Dungeon const& map,
 
   int frame_h = view_h + 1 + 1 + log_height;
 
+  // Clamp frame to configured screen height if needed
   if (frame_h > max_y - 2) frame_h = max_y - 2;
 
   Position p = {0, 0};
@@ -183,7 +191,8 @@ void Renderer::draw_dungeon(Dungeon const& map,
     cam_y = clamp(cam_y, 0, map.height - view_h);
   }
 
-  draw_borders(view_w, frame_h, view_h + 2);
+  // Draw full size border
+  draw_borders(0, 0, view_w, frame_h, view_h + 2);
 
   int wall_pair = wall_color;
   int floor_pair = floor_color;
@@ -254,12 +263,15 @@ void Renderer::draw_inventory(std::vector<ItemTag> const& inventory, MessageLog 
   int log_height = 6;
   int separator_y = ui_height - log_height - 1;
 
-  draw_borders(ui_width, ui_height, separator_y);
+  // Always draw max size border
+  draw_borders(0, 0, ui_width, ui_height, separator_y);
 
   attron(A_BOLD);
   mvprintw(2, 4, "--- INVENTORY ---");
   attroff(A_BOLD);
 
+  // Content starts below header, but we want it reasonably placed.
+  // Standard list from top-left of the content area
   if (inventory.empty()) { mvprintw(4, 6, "(Empty)"); }
   else
   {
@@ -281,7 +293,8 @@ void Renderer::draw_stats(Registry const& reg, int player_id, std::string player
   int log_height = 6;
   int separator_y = ui_height - log_height - 1;
 
-  draw_borders(ui_width, ui_height, separator_y);
+  // Always draw max size border
+  draw_borders(0, 0, ui_width, ui_height, separator_y);
 
   if (!reg.stats.contains(player_id)) return;
   auto s = reg.stats.at(player_id);
@@ -310,13 +323,23 @@ void Renderer::draw_character_creation_header(MessageLog const& log)
   int log_height = 6;
   int separator_y = ui_height - log_height - 1;
 
-  draw_borders(ui_width, ui_height, separator_y);
+  // Always draw max size border
+  draw_borders(0, 0, ui_width, ui_height, separator_y);
 
-  mvprintw(5, 10, "--- CHARACTER CREATION ---");
-  mvprintw(7, 10, "Enter your name: ");
+  // Center content vertically in the upper section
+  int upper_center_y = separator_y / 2;
+
+  std::string title = "--- CHARACTER CREATION ---";
+  std::string prompt = "Enter your name: ";
+
+  mvprintw(upper_center_y - 2, (screen_width - title.length()) / 2, "%s", title.c_str());
+  mvprintw(upper_center_y + 1, (screen_width - 20) / 2, "%s", prompt.c_str()); // Approx centering for prompt
 
   draw_log(log, separator_y + 1, ui_height, ui_width + 1);
-  move(7, 27);
+
+  // Position cursor for input right after prompt
+  int prompt_x = (screen_width - 20) / 2;
+  move(upper_center_y + 1, prompt_x + prompt.length());
   refresh();
 }
 
@@ -328,15 +351,26 @@ void Renderer::draw_class_selection(std::vector<std::string> const& class_paths,
   int log_height = 6;
   int separator_y = ui_height - log_height - 1;
 
-  draw_borders(ui_width, ui_height, separator_y);
+  // Always draw max size border
+  draw_borders(0, 0, ui_width, ui_height, separator_y);
 
-  mvprintw(5, 10, "--- SELECT YOUR CLASS ---");
+  std::string title = "--- SELECT YOUR CLASS ---";
+  int content_h = class_paths.size() + 2; // title + spacing + items
+  int start_y = (separator_y - content_h) / 2;
+  if (start_y < 1) start_y = 1;
+
+  mvprintw(start_y, (screen_width - title.length()) / 2, "%s", title.c_str());
 
   for (size_t i = 0; i < class_paths.size(); ++i)
   {
-    if ((int)i == selection) attron(A_REVERSE);
+    if (start_y + 2 + (int)i >= separator_y) break;
+
     std::string name = fs::path(class_paths[i]).stem().string();
-    mvprintw(7 + i, 12, "[ %s ]", name.c_str());
+    std::string display = "[ " + name + " ]";
+    int x_pos = (screen_width - display.length()) / 2;
+
+    if ((int)i == selection) attron(A_REVERSE);
+    mvprintw(start_y + 2 + i, x_pos, "%s", display.c_str());
     attroff(A_REVERSE);
   }
 
@@ -344,7 +378,6 @@ void Renderer::draw_class_selection(std::vector<std::string> const& class_paths,
   refresh();
 }
 
-// UPDATED: Game Over with UI
 void Renderer::draw_game_over(MessageLog const& log)
 {
   clear();
@@ -353,19 +386,22 @@ void Renderer::draw_game_over(MessageLog const& log)
   int log_height = 6;
   int separator_y = ui_height - log_height - 1;
 
-  draw_borders(ui_width, ui_height, separator_y);
+  draw_borders(0, 0, ui_width, ui_height, separator_y);
+
+  int center_y = separator_y / 2;
 
   attron(A_BOLD | COLOR_PAIR(static_cast<short>(ColorPair::Orc)));
-  mvprintw(10, 30, " !!! YOU DIED !!! ");
+  std::string title = " !!! YOU DIED !!! ";
+  mvprintw(center_y - 2, (screen_width - title.length()) / 2, "%s", title.c_str());
   attroff(A_BOLD | COLOR_PAIR(static_cast<short>(ColorPair::Orc)));
 
-  mvprintw(15, 20, "Press 'r' to Restart, 'q' to Quit");
+  std::string sub = "Press 'r' to Restart, 'q' to Quit";
+  mvprintw(center_y + 1, (screen_width - sub.length()) / 2, "%s", sub.c_str());
 
   draw_log(log, separator_y + 1, ui_height, ui_width + 1);
   refresh();
 }
 
-// UPDATED: Victory with UI
 void Renderer::draw_victory(MessageLog const& log)
 {
   clear();
@@ -374,13 +410,17 @@ void Renderer::draw_victory(MessageLog const& log)
   int log_height = 6;
   int separator_y = ui_height - log_height - 1;
 
-  draw_borders(ui_width, ui_height, separator_y);
+  draw_borders(0, 0, ui_width, ui_height, separator_y);
+
+  int center_y = separator_y / 2;
 
   attron(A_BOLD | COLOR_PAIR(static_cast<short>(ColorPair::Gold)));
-  mvprintw(10, 30, " !!! VICTORY !!! ");
+  std::string title = " !!! VICTORY !!! ";
+  mvprintw(center_y - 2, (screen_width - title.length()) / 2, "%s", title.c_str());
   attroff(A_BOLD | COLOR_PAIR(static_cast<short>(ColorPair::Gold)));
 
-  mvprintw(15, 20, "Press 'c' to Continue, 'q' to Quit");
+  std::string sub = "Press 'c' to Continue, 'q' to Quit";
+  mvprintw(center_y + 1, (screen_width - sub.length()) / 2, "%s", sub.c_str());
 
   draw_log(log, separator_y + 1, ui_height, ui_width + 1);
   refresh();
