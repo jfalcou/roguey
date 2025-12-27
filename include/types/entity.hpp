@@ -6,7 +6,11 @@
 */
 //==================================================================================================
 #pragma once
-#include "types/entity.hpp"
-#include "types/game.hpp"
-#include "types/geometry.hpp"
-#include "types/items.hpp"
+#include <cstdint>
+
+using EntityID = std::uint32_t;
+
+struct Stats
+{
+  int hp, max_hp, mana, max_mana, damage, xp, level, fov_range;
+};

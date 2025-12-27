@@ -6,7 +6,12 @@
 */
 //==================================================================================================
 #pragma once
-#include "types/entity.hpp"
-#include "types/game.hpp"
-#include "types/geometry.hpp"
-#include "types/items.hpp"
+enum class game_state
+{
+  Dungeon,
+  Inventory,
+  Stats,
+  Help,
+  GameOver,
+  Victory
+};
