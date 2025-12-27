@@ -1,5 +1,5 @@
 #pragma once
-#include "registry.hpp" // For Stats/Position if needed by Lua registration
+#include "registry.hpp"
 #include "sol/sol.hpp"
 #include "types.hpp"
 #include <filesystem>

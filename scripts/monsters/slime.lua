@@ -1,7 +1,7 @@
 -- scripts/monsters/slime.lua
 function get_init_stats()
     return {
-        color = Slime,
+        color = entity_slime,
         damage = 2,
         glyph = "s",
         hp = 10,

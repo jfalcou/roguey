@@ -1,7 +1,7 @@
 item_data = {
     name = "Healing Potion",
     glyph = "!",
-    color = HP_Potion
+    color = item_hp_potion
 }
 
 function on_use(stats, log)

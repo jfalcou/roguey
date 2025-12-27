@@ -21,7 +21,7 @@ enum class game_state
 
 enum class ItemType
 {
-  Gold,
+  ui_gold,
   Consumable,
   Stairs
 };

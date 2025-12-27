@@ -6,7 +6,7 @@
 void MessageLog::add(std::string msg, std::string const& color)
 {
   messages.push_back({msg, color});
-  if (messages.size() > max_messages) messages.pop_front();
+  if (messages.size() > max_messages) messages.erase(messages.begin());
 }
 
 EntityID Systems::get_entity_at(Registry const& reg, int x, int y)
@@ -28,21 +28,24 @@ void Systems::attack(Registry& reg, EntityID a_id, EntityID d_id, MessageLog& lo
   std::string a_name = reg.names.count(a_id) ? reg.names.at(a_id) : "Unknown";
   std::string d_name = reg.names.count(d_id) ? reg.names.at(d_id) : "Unknown";
 
-  if (a_id == reg.player_id) { log.add("You hit the " + d_name + " for " + std::to_string(a.damage), "Default"); }
-  else if (d_id == reg.player_id) { log.add("The " + a_name + " hits you for " + std::to_string(a.damage), "Orc"); }
+  if (a_id == reg.player_id) { log.add("You hit the " + d_name + " for " + std::to_string(a.damage), "ui_default"); }
+  else if (d_id == reg.player_id)
+  {
+    log.add("The " + a_name + " hits you for " + std::to_string(a.damage), "ui_emphasis");
+  }
 
   if (d.hp <= 0)
   {
     if (a_id == reg.player_id)
     {
-      log.add("You defeated the " + d_name + "! +50 XP", "Gold");
+      log.add("You defeated the " + d_name + "! +50 XP", "ui_gold");
       reg.stats[a_id].xp += 50;
       check_level_up(reg, log, lua);
     }
     else if (d_id == reg.player_id)
     {
       // NEW: Requested death log
-      log.add(d_name + " was defeated by the " + a_name, "Orc");
+      log.add(d_name + " was defeated by the " + a_name, "ui_emphasis");
     }
     reg.destroy_entity(d_id);
   }
@@ -75,7 +78,7 @@ void Systems::check_level_up(Registry& reg, MessageLog& log, sol::state& lua)
       s.max_mana = new_stats["mp"];
       s.mana = s.max_mana;
       s.damage = new_stats["damage"];
-      log.add("Level Up! You are now Level " + std::to_string(s.level), "Gold");
+      log.add("Level Up! You are now Level " + std::to_string(s.level), "ui_gold");
     }
   }
 }
@@ -85,7 +88,7 @@ void Systems::cast_fireball(Registry& reg, Dungeon& map, int dx, int dy, Message
   auto& s = reg.stats[reg.player_id];
   if (s.mana < 20)
   {
-    log.add("Not enough mana!", "Orc");
+    log.add("Not enough mana!", "ui_emphasis");
     return;
   }
   s.mana -= 20;
@@ -96,11 +99,11 @@ void Systems::cast_fireball(Registry& reg, Dungeon& map, int dx, int dy, Message
     int tx = p.x + dx * i;
     int ty = p.y + dy * i;
 
-    renderer.animate_projectile(tx, ty, '*', "Spell");
+    renderer.animate_projectile(tx, ty, '*', "fx_fire");
 
     if (!map.is_walkable(tx, ty))
     {
-      log.add("Fireball hits a wall.", "Default");
+      log.add("Fireball hits a wall.", "ui_default");
       break;
     }
 
@@ -109,11 +112,11 @@ void Systems::cast_fireball(Registry& reg, Dungeon& map, int dx, int dy, Message
     {
       reg.stats[target].hp -= 40;
       std::string t_name = reg.names.count(target) ? reg.names.at(target) : "Target";
-      log.add("Fireball burns " + t_name + "!", "Spell");
+      log.add("Fireball burns " + t_name + "!", "fx_fire");
 
       if (reg.stats[target].hp <= 0)
       {
-        log.add(t_name + " incinerated.", "Gold");
+        log.add(t_name + " incinerated.", "ui_gold");
         reg.destroy_entity(target);
       }
       break;

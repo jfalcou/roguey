@@ -1,6 +1,6 @@
 function get_init_stats()
     return {
-        color = Orc,
+        color = entity_orc,
         damage = 8,
         glyph = "O",
         hp = 30,

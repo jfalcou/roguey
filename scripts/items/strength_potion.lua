@@ -1,7 +1,7 @@
 item_data = {
     name = "Strength Elixir",
     glyph = "!",
-    color = STR_Potion
+    color = item_dmg_potion
 }
 
 function on_use(stats, log)

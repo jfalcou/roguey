@@ -1,9 +1,9 @@
 #pragma once
 #include "dungeon.hpp"
 #include "registry.hpp"
-#include <deque>
-#include <sol/sol.hpp>
+#include "sol/sol.hpp"
 #include <string>
+#include <vector>
 
 class Renderer;
 
@@ -16,10 +16,10 @@ struct LogEntry
 class MessageLog
 {
 public:
-  std::deque<LogEntry> messages;
+  std::vector<LogEntry> messages;
   size_t const max_messages = 10;
 
-  void add(std::string msg, std::string const& color = "Default");
+  void add(std::string msg, std::string const& color = "ui_default");
 };
 
 namespace Systems

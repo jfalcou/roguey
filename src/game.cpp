@@ -20,7 +20,7 @@ Game::Game(bool debug) : map(80, 20), debug_mode(debug)
 
   renderer.init_colors(scripts);
 
-  scripts.lua.new_usertype<MessageLog>("Log", "add", [](MessageLog& l, std::string msg) { l.add(msg, "Default"); });
+  scripts.lua.new_usertype<MessageLog>("Log", "add", [](MessageLog& l, std::string msg) { l.add(msg, "ui_default"); });
 
   sol::protected_function start_cfg_func = scripts.lua["get_start_config"];
   sol::table start_config = start_cfg_func();
@@ -58,10 +58,10 @@ void Game::get_player_setup()
     if (!invalid)
     {
       reg.player_name = input;
-      log.add("Welcome, " + reg.player_name + "!", "Gold");
+      log.add("Welcome, " + reg.player_name + "!", "ui_gold");
       break;
     }
-    else { log.add("Invalid name. Please try again.", "Orc"); }
+    else { log.add("Invalid name. Please try again.", "ui_emphasis"); }
   }
 
   noecho();
@@ -100,11 +100,11 @@ void Game::spawn_item(int x, int y, std::string script_path)
 
 bool Game::spawn_monster(int x, int y, std::string script_path)
 {
-  if (debug_mode) { log.add("Spawning: " + script_path, "Orc"); }
+  if (debug_mode) { log.add("Spawning: " + script_path, "ui_emphasis"); }
   if (!scripts.load_script(script_path))
   {
     // Log the error to the in-game log so you can see it!
-    log.add("Error: Could not load " + script_path, "Orc");
+    log.add("Error: Could not load " + script_path, "ui_emphasis");
     return false;
   }
 
@@ -120,7 +120,7 @@ bool Game::spawn_monster(int x, int y, std::string script_path)
   if (!result.valid())
   {
     sol::error err = result;
-    log.add("Lua Error in " + script_path + ": " + std::string(err.what()), "Orc");
+    log.add("Lua Error in " + script_path + ": " + std::string(err.what()), "ui_emphasis");
     reg.destroy_entity(id); // Cleanup
     return false;
   }
@@ -181,7 +181,7 @@ void Game::reset(bool full_reset, std::string level_script)
 
   reg.player_id = reg.create_entity();
   reg.positions[reg.player_id] = map.rooms[0].center();
-  reg.renderables[reg.player_id] = {'@', renderer.get_color("Player")};
+  reg.renderables[reg.player_id] = {'@', renderer.get_color("entity_player")};
   reg.names[reg.player_id] = reg.player_name;
 
   if (full_reset)
@@ -205,7 +205,7 @@ void Game::reset(bool full_reset, std::string level_script)
   {
     EntityID stairs = reg.create_entity();
     reg.positions[stairs] = map.rooms.back().center();
-    reg.renderables[stairs] = {'>', renderer.get_color("Gold")};
+    reg.renderables[stairs] = {'>', renderer.get_color("ui_gold")};
     reg.items[stairs] = {ItemType::Stairs, 0, next_level_path, ""};
     reg.names[stairs] = "Stairs";
   }
@@ -237,7 +237,7 @@ void Game::reset(bool full_reset, std::string level_script)
   {
     std::string debug_msg = "Debug Spawn: ";
     for (auto const& [name, count] : spawn_counts) { debug_msg += name + " x" + std::to_string(count) + " "; }
-    log.add(debug_msg, "Gold");
+    log.add(debug_msg, "ui_gold");
   }
   map.update_fov(reg.positions[reg.player_id].x, reg.positions[reg.player_id].y, 8);
 }
@@ -331,29 +331,31 @@ void Game::process_input()
       {
         last_dx = dx;
         last_dy = dy;
-      }
-      Position& p = reg.positions[reg.player_id];
-      EntityID target = Systems::get_entity_at(reg, p.x + dx, p.y + dy);
 
-      if (target && reg.stats.contains(target)) { Systems::attack(reg, reg.player_id, target, log, scripts.lua); }
-      else if (map.is_walkable(p.x + dx, p.y + dy))
-      {
-        p.x += dx;
-        p.y += dy;
-        if (target && reg.items.contains(target))
+        Position& p = reg.positions[reg.player_id];
+        EntityID target = Systems::get_entity_at(reg, p.x + dx, p.y + dy);
+
+        if (target && reg.stats.contains(target)) { Systems::attack(reg, reg.player_id, target, log, scripts.lua); }
+        else if (map.is_walkable(p.x + dx, p.y + dy))
         {
-          if (reg.items[target].type == ItemType::Stairs)
+          p.x += dx;
+          p.y += dy;
+          if (target && reg.items.contains(target))
           {
-            reset(false, reg.items[target].name);
-            return;
+            if (reg.items[target].type == ItemType::Stairs)
+            {
+              reset(false, reg.items[target].name);
+              return;
+            }
+            inventory.push_back(reg.items[target]);
+            log.add("Picked up " + reg.items[target].name);
+            reg.destroy_entity(target);
           }
-          inventory.push_back(reg.items[target]);
-          log.add("Picked up " + reg.items[target].name);
-          reg.destroy_entity(target);
         }
       }
       Systems::move_monsters(reg, map, log, scripts.lua);
-      map.update_fov(p.x, p.y, reg.stats[reg.player_id].fov_range);
+      map.update_fov(reg.positions[reg.player_id].x, reg.positions[reg.player_id].y,
+                     reg.stats[reg.player_id].fov_range);
     }
   }
   else if (state == game_state::Inventory) { handle_input_inventory(ch); }
@@ -367,9 +369,9 @@ void Game::render()
   if (state == game_state::Dungeon)
   {
     sol::table config = scripts.lua["get_level_config"](depth);
-    int wc = config["wall_color"].get_or(4);
-    int fc = config["floor_color"].get_or(1);
-    std::string lvl_name = config["name"].get_or<std::string>("Dungeon");
+    int wc = config["wall_color"].get_or(COLOR_PAIR(4));
+    int fc = config["floor_color"].get_or(COLOR_PAIR(1));
+    std::string lvl_name = config["name"].get_or<std::string>("Unknwon Location");
     renderer.draw_dungeon(map, reg, log, reg.player_id, depth, wc, fc, lvl_name);
   }
   else if (state == game_state::Inventory) { renderer.draw_inventory(inventory, log); }
@@ -405,7 +407,7 @@ void Game::handle_input_inventory(int ch)
         else
         {
           sol::error err = use_res;
-          log.add("Script Error: " + std::string(err.what()), "Orc");
+          log.add("Script Error: " + std::string(err.what()), "ui_emphasis");
         }
       }
     }

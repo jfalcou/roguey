@@ -86,7 +86,8 @@ int Renderer::clamp(int val, int min, int max)
 
 void Renderer::draw_borders(int sx, int sy, int w, int h, std::string const& title, int separator_y)
 {
-  attron(COLOR_PAIR(0) | A_BOLD);
+  int cid = get_color("ui_border");
+  attron(cid);
 
   // Corners
   mvaddch(sy, sx, ACS_ULCORNER);
@@ -127,7 +128,7 @@ void Renderer::draw_borders(int sx, int sy, int w, int h, std::string const& tit
     }
   }
 
-  attroff(COLOR_PAIR(0) | A_BOLD);
+  attroff(cid);
 }
 
 void Renderer::draw_log(MessageLog const& log, int start_y, int max_row, int max_col)
@@ -137,7 +138,7 @@ void Renderer::draw_log(MessageLog const& log, int start_y, int max_row, int max
 
   if (visible_lines <= 0) return;
 
-  int msg_count = (int)log.messages.size();
+  int msg_count = static_cast<int>(log.messages.size());
   int start_index = 0;
   if (msg_count > visible_lines) { start_index = msg_count - visible_lines; }
 
@@ -241,9 +242,9 @@ void Renderer::draw_dungeon(Dungeon const& map,
       }
       else if (map.explored[wy][wx])
       {
-        attron(get_color("Hidden"));
+        attron(get_color("ui_hidden"));
         mvaddch(vy + 1, vx + 1, map.grid[wy][wx]);
-        attroff(get_color("Hidden"));
+        attroff(get_color("ui_hidden"));
       }
     }
   }
@@ -431,10 +432,10 @@ void Renderer::draw_game_over(MessageLog const& log)
 
   int center_y = separator_y / 2;
 
-  attron(A_BOLD | COLOR_PAIR(get_color("Orc")));
+  attron(get_color("ui_failure"));
   std::string title = " !!! YOU DIED !!! ";
   mvprintw(center_y - 2, (screen_width - title.length()) / 2, "%s", title.c_str());
-  attroff(A_BOLD | COLOR_PAIR(get_color("Orc")));
+  attroff(get_color("ui_failure"));
 
   std::string sub = "Press 'r' to Restart, 'q' to Quit";
   mvprintw(center_y + 1, (screen_width - sub.length()) / 2, "%s", sub.c_str());
@@ -455,10 +456,10 @@ void Renderer::draw_victory(MessageLog const& log)
 
   int center_y = separator_y / 2;
 
-  attron(A_BOLD | COLOR_PAIR(get_color("Gold")));
+  attron(A_BOLD | COLOR_PAIR(get_color("ui_gold")));
   std::string title = " !!! VICTORY !!! ";
   mvprintw(center_y - 2, (screen_width - title.length()) / 2, "%s", title.c_str());
-  attroff(A_BOLD | COLOR_PAIR(get_color("Gold")));
+  attroff(A_BOLD | COLOR_PAIR(get_color("ui_gold")));
 
   std::string sub = "Press 'c' to Continue, 'q' to Quit";
   mvprintw(center_y + 1, (screen_width - sub.length()) / 2, "%s", sub.c_str());

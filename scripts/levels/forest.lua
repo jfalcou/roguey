@@ -4,8 +4,8 @@ function get_level_config(depth)
         name = "Whispering Woods",
         width = 80,
         height = 20,
-        wall_color = Forest,   -- Used as a global variable
-        floor_color = Default, -- Used as a global variable
+        wall_color = asset_tree,
+        floor_color = asset_dirt,
         is_boss_level = (depth % 5 == 0)
     }
 end

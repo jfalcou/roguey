@@ -4,8 +4,8 @@ function get_level_config(depth)
         name = "Deep Dungeon",
         width = 120,
         height = 40,
-        wall_color = Wall,
-        floor_color = Default,
+        wall_color = asset_wall,
+        floor_color = asset_floor,
         is_boss_level = (depth % 3 == 0)
     }
 end
