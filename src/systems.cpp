@@ -24,16 +24,31 @@ void Systems::attack(Registry& reg, EntityID a_id, EntityID d_id, MessageLog& lo
   auto& d = reg.stats[d_id];
   d.hp -= a.damage;
 
-  if (a_id == reg.player_id) { log.add("You hit for " + std::to_string(a.damage), ColorPair::Default); }
-  else { log.add("Monster hits you for " + std::to_string(a.damage), ColorPair::Orc); }
+  // Get names or fallbacks
+  std::string a_name = reg.names.count(a_id) ? reg.names.at(a_id) : "Unknown";
+  std::string d_name = reg.names.count(d_id) ? reg.names.at(d_id) : "Unknown";
+
+  if (a_id == reg.player_id)
+  {
+    log.add("You hit the " + d_name + " for " + std::to_string(a.damage), ColorPair::Default);
+  }
+  else if (d_id == reg.player_id)
+  {
+    log.add("The " + a_name + " hits you for " + std::to_string(a.damage), ColorPair::Orc);
+  }
 
   if (d.hp <= 0)
   {
     if (a_id == reg.player_id)
     {
-      log.add("Enemy killed! +50 XP", ColorPair::Gold);
+      log.add("You defeated the " + d_name + "! +50 XP", ColorPair::Gold);
       reg.stats[a_id].xp += 50;
       check_level_up(reg, log, lua);
+    }
+    else if (d_id == reg.player_id)
+    {
+      // NEW: Requested death log
+      log.add(d_name + " was defeated by the " + a_name, ColorPair::Orc);
     }
     reg.destroy_entity(d_id);
   }
@@ -87,7 +102,6 @@ void Systems::cast_fireball(Registry& reg, Dungeon& map, int dx, int dy, Message
     int tx = p.x + dx * i;
     int ty = p.y + dy * i;
 
-    // VISUAL: Delegate to Renderer
     renderer.animate_projectile(tx, ty, '*', ColorPair::Spell);
 
     if (!map.is_walkable(tx, ty))
@@ -100,11 +114,12 @@ void Systems::cast_fireball(Registry& reg, Dungeon& map, int dx, int dy, Message
     if (target && target != reg.player_id)
     {
       reg.stats[target].hp -= 40;
-      log.add("Fireball burns target!", ColorPair::Spell);
+      std::string t_name = reg.names.count(target) ? reg.names.at(target) : "Target";
+      log.add("Fireball burns " + t_name + "!", ColorPair::Spell);
 
       if (reg.stats[target].hp <= 0)
       {
-        log.add("Target incinerated.", ColorPair::Gold);
+        log.add(t_name + " incinerated.", ColorPair::Gold);
         reg.destroy_entity(target);
       }
       break;

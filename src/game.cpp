@@ -1,6 +1,6 @@
 #include "game.hpp"
-#include <algorithm> // for std::all_of
-#include <cctype>    // for std::isspace, std::isprint
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <map>
 #include <ncurses.h>
@@ -41,20 +41,17 @@ Game::~Game() {}
 
 void Game::get_player_setup()
 {
-  // 1. Name Input with Validation Loop
   echo();
   curs_set(1);
 
   while (true)
   {
-    // Redraw UI with current log
     renderer.draw_character_creation_header(log);
 
     char name_buf[32];
     getnstr(name_buf, 31);
     std::string input(name_buf);
 
-    // Validation: Not empty and not just whitespace/weird chars
     bool invalid = input.empty() || std::all_of(input.begin(), input.end(),
                                                 [](unsigned char c) { return std::isspace(c) || !std::isprint(c); });
 
@@ -64,17 +61,12 @@ void Game::get_player_setup()
       log.add("Welcome, " + reg.player_name + "!", ColorPair::Gold);
       break;
     }
-    else
-    {
-      log.add("Invalid name. Please try again.", ColorPair::Orc);
-      // Loop restarts, redrawing the header and the error message
-    }
+    else { log.add("Invalid name. Please try again.", ColorPair::Orc); }
   }
 
   noecho();
   curs_set(0);
 
-  // 2. Class Selection Loop
   int selection = 0;
   while (true)
   {
@@ -100,6 +92,7 @@ void Game::spawn_item(int x, int y, std::string script_path)
   std::string glyph_str = data["glyph"];
   reg.renderables[id] = {glyph_str[0], static_cast<ColorPair>(data["color"].get<int>())};
   reg.items[id] = {ItemType::Consumable, 0, data["name"], script_path};
+  reg.names[id] = data["name"]; // Store name in generic map
 }
 
 void Game::spawn_monster(int x, int y, std::string script_path)
@@ -117,6 +110,11 @@ void Game::spawn_monster(int x, int y, std::string script_path)
   int cid = s["color"].get<int>();
   reg.renderables[id] = {glyph, static_cast<ColorPair>(cid == 0 ? 1 : cid)};
   std::string m_type = s["type"];
+
+  // NEW: Capture name for combat logs
+  std::string name = s["name"].get_or(fs::path(script_path).stem().string());
+  reg.names[id] = name;
+
   if (m_type == "boss") reg.boss_id = id;
 }
 
@@ -144,6 +142,7 @@ void Game::reset(bool full_reset, std::string level_script)
   reg.script_paths.clear();
   reg.monster_types.clear();
   reg.monsters.clear();
+  reg.names.clear(); // Clear names
   reg.boss_id = 0;
   reg.next_id = 1;
   state = GameState::Dungeon;
@@ -158,6 +157,7 @@ void Game::reset(bool full_reset, std::string level_script)
   reg.player_id = reg.create_entity();
   reg.positions[reg.player_id] = map.rooms[0].center();
   reg.renderables[reg.player_id] = {'@', ColorPair::Player};
+  reg.names[reg.player_id] = reg.player_name; // Ensure player name is in map
 
   if (full_reset)
   {
@@ -182,6 +182,7 @@ void Game::reset(bool full_reset, std::string level_script)
     reg.positions[stairs] = map.rooms.back().center();
     reg.renderables[stairs] = {'>', ColorPair::Gold};
     reg.items[stairs] = {ItemType::Stairs, 0, next_level_path, ""};
+    reg.names[stairs] = "Stairs";
   }
 
   sol::table monster_weights = scripts.lua["get_spawn_odds"](depth);
@@ -380,7 +381,7 @@ void Game::handle_input_inventory(int ch)
 bool Game::handle_game_over()
 {
   flushinp();
-  renderer.draw_game_over();
+  renderer.draw_game_over(log);
   while (true)
   {
     int choice = getch();
@@ -392,7 +393,7 @@ bool Game::handle_game_over()
 bool Game::handle_victory()
 {
   flushinp();
-  renderer.draw_victory();
+  renderer.draw_victory(log);
   while (true)
   {
     int choice = getch();

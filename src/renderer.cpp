@@ -251,7 +251,6 @@ void Renderer::draw_inventory(std::vector<ItemTag> const& inventory, MessageLog 
 {
   int ui_width = screen_width - 2;
   int ui_height = screen_height - 2;
-
   int log_height = 6;
   int separator_y = ui_height - log_height - 1;
 
@@ -279,7 +278,6 @@ void Renderer::draw_stats(Registry const& reg, int player_id, std::string player
 {
   int ui_width = screen_width - 2;
   int ui_height = screen_height - 2;
-
   int log_height = 6;
   int separator_y = ui_height - log_height - 1;
 
@@ -304,7 +302,6 @@ void Renderer::draw_stats(Registry const& reg, int player_id, std::string player
   draw_log(log, separator_y + 1, ui_height, ui_width + 1);
 }
 
-// UPDATED
 void Renderer::draw_character_creation_header(MessageLog const& log)
 {
   clear();
@@ -319,13 +316,10 @@ void Renderer::draw_character_creation_header(MessageLog const& log)
   mvprintw(7, 10, "Enter your name: ");
 
   draw_log(log, separator_y + 1, ui_height, ui_width + 1);
-
-  // Position cursor for input
   move(7, 27);
   refresh();
 }
 
-// UPDATED
 void Renderer::draw_class_selection(std::vector<std::string> const& class_paths, int selection, MessageLog const& log)
 {
   clear();
@@ -341,10 +335,8 @@ void Renderer::draw_class_selection(std::vector<std::string> const& class_paths,
   for (size_t i = 0; i < class_paths.size(); ++i)
   {
     if ((int)i == selection) attron(A_REVERSE);
-
     std::string name = fs::path(class_paths[i]).stem().string();
     mvprintw(7 + i, 12, "[ %s ]", name.c_str());
-
     attroff(A_REVERSE);
   }
 
@@ -352,22 +344,44 @@ void Renderer::draw_class_selection(std::vector<std::string> const& class_paths,
   refresh();
 }
 
-void Renderer::draw_game_over()
+// UPDATED: Game Over with UI
+void Renderer::draw_game_over(MessageLog const& log)
 {
   clear();
+  int ui_width = screen_width - 2;
+  int ui_height = screen_height - 2;
+  int log_height = 6;
+  int separator_y = ui_height - log_height - 1;
+
+  draw_borders(ui_width, ui_height, separator_y);
+
   attron(A_BOLD | COLOR_PAIR(static_cast<short>(ColorPair::Orc)));
   mvprintw(10, 30, " !!! YOU DIED !!! ");
   attroff(A_BOLD | COLOR_PAIR(static_cast<short>(ColorPair::Orc)));
+
   mvprintw(15, 20, "Press 'r' to Restart, 'q' to Quit");
+
+  draw_log(log, separator_y + 1, ui_height, ui_width + 1);
   refresh();
 }
 
-void Renderer::draw_victory()
+// UPDATED: Victory with UI
+void Renderer::draw_victory(MessageLog const& log)
 {
   clear();
+  int ui_width = screen_width - 2;
+  int ui_height = screen_height - 2;
+  int log_height = 6;
+  int separator_y = ui_height - log_height - 1;
+
+  draw_borders(ui_width, ui_height, separator_y);
+
   attron(A_BOLD | COLOR_PAIR(static_cast<short>(ColorPair::Gold)));
   mvprintw(10, 30, " !!! VICTORY !!! ");
   attroff(A_BOLD | COLOR_PAIR(static_cast<short>(ColorPair::Gold)));
+
   mvprintw(15, 20, "Press 'c' to Continue, 'q' to Quit");
+
+  draw_log(log, separator_y + 1, ui_height, ui_width + 1);
   refresh();
 }

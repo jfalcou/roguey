@@ -18,6 +18,9 @@ struct Registry
   std::map<EntityID, Stats> stats;
   std::map<EntityID, std::string> script_paths;
   std::map<EntityID, std::string> monster_types;
+  // NEW: Generic name storage for combat logs
+  std::map<EntityID, std::string> names;
+
   std::vector<EntityID> monsters;
 
   EntityID player_id;

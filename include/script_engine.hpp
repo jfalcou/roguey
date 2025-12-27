@@ -1,9 +1,9 @@
 #pragma once
 #include "registry.hpp" // For Stats/Position if needed by Lua registration
+#include "sol/sol.hpp"
 #include "types.hpp"
 #include <filesystem>
 #include <random>
-#include <sol/sol.hpp>
 #include <string>
 #include <vector>
 
