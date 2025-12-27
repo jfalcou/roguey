@@ -14,8 +14,8 @@ class Dungeon
 {
 public:
   int width, height;
-  std::vector<std::vector<char>> grid;
-  std::vector<std::vector<bool>> explored;
+  grid2D<char> grid;
+  grid2D<bool> explored;
   std::set<Position> visible_tiles;
   std::vector<Rect> rooms;
 

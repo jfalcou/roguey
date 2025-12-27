@@ -248,16 +248,16 @@ void Renderer::draw_dungeon(Dungeon const& map,
 
       if (map.visible_tiles.count({wx, wy}))
       {
-        int col_attr = map.grid[wy][wx] == '#' ? wall_color : floor_color;
+        int col_attr = map.grid(wx, wy) == '#' ? wall_color : floor_color;
 
         attron(col_attr);
-        mvaddch(vy + 1, vx + 1, map.grid[wy][wx]);
+        mvaddch(vy + 1, vx + 1, map.grid(wx, wy));
         attroff(col_attr);
       }
-      else if (map.explored[wy][wx])
+      else if (map.explored(wx, wy))
       {
         attron(get_color("ui_hidden"));
-        mvaddch(vy + 1, vx + 1, map.grid[wy][wx]);
+        mvaddch(vy + 1, vx + 1, map.grid(wx, wy));
         attroff(get_color("ui_hidden"));
       }
     }
