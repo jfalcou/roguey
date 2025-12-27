@@ -1,39 +1,40 @@
 #pragma once
-#include "registry.hpp"
 #include "dungeon.hpp"
-#include "systems.hpp"
-#include "script_engine.hpp"
+#include "registry.hpp"
 #include "renderer.hpp"
+#include "script_engine.hpp"
+#include "systems.hpp"
 #include <vector>
 
-class Game {
-    Registry reg;
-    Dungeon map;
-    MessageLog log;
-    ScriptEngine scripts;
-    Renderer renderer; // The new renderer
+class Game
+{
+  Registry reg;
+  Dungeon map;
+  MessageLog log;
+  ScriptEngine scripts;
+  Renderer renderer; // The new renderer
 
-    bool running = true;
-    bool debug_mode = false;
-    GameState state = GameState::Dungeon;
-    int last_dx = 1, last_dy = 0;
-    int depth = 1;
-    std::string current_level_script;
-    std::vector<ItemTag> inventory;
+  bool running = true;
+  bool debug_mode = false;
+  GameState state = GameState::Dungeon;
+  int last_dx = 1, last_dy = 0;
+  int depth = 1;
+  std::string current_level_script;
+  std::vector<ItemTag> inventory;
 
 public:
-    Game(bool debug = false);
-    ~Game();
-    void run();
+  Game(bool debug = false);
+  ~Game();
+  void run();
 
 private:
-    void reset(bool full_reset, std::string level_script = "");
-    void spawn_monster(int x, int y, std::string script_path);
-    void spawn_item(int x, int y, std::string script_path);
-    void process_input();
-    void render();
-    void handle_input_inventory(int ch);
-    void get_player_setup();
-    bool handle_game_over();
-    bool handle_victory();
+  void reset(bool full_reset, std::string level_script = "");
+  void spawn_monster(int x, int y, std::string script_path);
+  void spawn_item(int x, int y, std::string script_path);
+  void process_input();
+  void render();
+  void handle_input_inventory(int ch);
+  void get_player_setup();
+  bool handle_game_over();
+  bool handle_victory();
 };
