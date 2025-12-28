@@ -40,6 +40,8 @@ namespace roguey
 
     void cast_fireball(Registry& reg, Dungeon& map, int dx, int dy, MessageLog& log, sol::state& lua);
     void move_monsters(Registry& reg, Dungeon const& map, MessageLog& log, sol::state& lua);
+
+    std::string checked_script_path(std::string_view path);
     void update_projectiles(
       Registry& reg, Dungeon const& map, MessageLog& log, sol::state& lua, Renderer* renderer = nullptr);
     std::string binary_path();

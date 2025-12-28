@@ -11,6 +11,7 @@
 #include <ftxui/component/screen_interactive.hpp>
 #include <string>
 #include <vector>
+#include <filesystem>
 
 int main(int argc, char* argv[])
 {
@@ -21,7 +22,26 @@ int main(int argc, char* argv[])
     if (arg == "-d") debug = true;
   }
 
-  roguey::Systems::set_binary_path(argv[0]);
+  struct working_dir_is_exe_dir{
+    const std::filesystem::path original_working_dir = std::filesystem::current_path();
+
+    explicit working_dir_is_exe_dir(std::string_view exe_path_str)
+    {
+      // from now on we want all file loading to be relative to this executable's path
+      // to achieve this we force the current path to the directory where the executable is located
+      namespace fs = std::filesystem;
+      const auto exe_path = fs::canonical(exe_path_str);
+      const auto exe_dir_path = exe_path.parent_path();
+      assert(is_directory(exe_dir_path));
+      fs::current_path(exe_dir_path);
+    }
+
+    ~working_dir_is_exe_dir()
+    {
+      std::filesystem::current_path(original_working_dir);
+    }
+  } change_working_dir [[maybe_unused]] { argv[0] } ;
+
   roguey::Game game(debug);
 
   if (!ftxui::Terminal::ColorSupport())

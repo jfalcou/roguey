@@ -9,28 +9,19 @@
 #include "systems.hpp"
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 
 namespace roguey
 {
   namespace Systems
   {
-    // NOTES:
-    // - you can set it automatically using some non-standard functions, if you do so the setter is not necessary
-    // anymore
-    // - on windows there is a way to get program arguments from anywhere, I believe itś possible on linux too
-    // - I would have used a path here, but to avoid including filesystem in the header I'll use a string like you did
-    //   in the rest of the code
-    // - if you keep a variable like this, make sure it's never set from multiple thread, or add protection
-    static std::string current_binary_path;
-
-    std::string binary_path()
+    std::string checked_script_path(std::string_view path)
     {
-      return current_binary_path;
-    }
-
-    void set_binary_path(std::string_view new_path)
-    {
-      current_binary_path = new_path;
+      // we expect script files to be located in a directory relative to the current executable location
+      namespace fs = std::filesystem;
+      auto complete_path = fs::canonical(path);
+      assert(fs::exists(complete_path));
+      return complete_path.string();
     }
   }
 
@@ -94,7 +85,7 @@ namespace roguey
     if (s.xp >= next_lvl_xp)
     {
       s.level++;
-      auto res = lua.safe_script_file(reg.player_class_script, sol::script_pass_on_error);
+      auto res = lua.safe_script_file(Systems::checked_script_path(reg.player_class_script), sol::script_pass_on_error);
       if (!res.valid()) return;
 
       sol::table current_stats = lua.create_table();
@@ -280,7 +271,7 @@ namespace roguey
       auto& m_pos = reg.positions[m_id];
       std::string const& script = reg.script_paths[m_id];
 
-      auto script_res = lua.safe_script_file(script, sol::script_pass_on_error);
+      auto script_res = lua.safe_script_file(Systems::checked_script_path(script), sol::script_pass_on_error);
       if (!script_res.valid()) continue;
 
       sol::protected_function ai_func = lua["update_ai"];
