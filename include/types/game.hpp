@@ -6,12 +6,16 @@
 */
 //==================================================================================================
 #pragma once
-enum class game_state
+
+namespace roguey
 {
-  Dungeon,
-  Inventory,
-  Stats,
-  Help,
-  GameOver,
-  Victory
-};
+  enum class game_state
+  {
+    Dungeon,
+    Inventory,
+    Stats,
+    Help,
+    GameOver,
+    Victory
+  };
+}

@@ -7,17 +7,21 @@
 //==================================================================================================
 #pragma once
 #include <string>
-enum class ItemType
-{
-  Gold,
-  Consumable,
-  Stairs
-};
 
-struct ItemTag
+namespace roguey
 {
-  ItemType type;
-  int value;
-  std::string name;
-  std::string script;
-};
+  enum class ItemType
+  {
+    Gold,
+    Consumable,
+    Stairs
+  };
+
+  struct ItemTag
+  {
+    ItemType type;
+    int value;
+    std::string name;
+    std::string script;
+  };
+}

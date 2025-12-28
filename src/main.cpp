@@ -21,8 +21,8 @@ int main(int argc, char* argv[])
     if (arg == "-d") debug = true;
   }
 
-  Systems::set_binary_path(argv[0]);
-  Game game(debug);
+  roguey::Systems::set_binary_path(argv[0]);
+  roguey::Game game(debug);
 
   if (!ftxui::Terminal::ColorSupport())
   {

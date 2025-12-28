@@ -6,6 +6,7 @@
 */
 //==================================================================================================
 #pragma once
+#include "types/color.hpp"
 #include "types/entity.hpp"
 #include "types/game.hpp"
 #include "types/geometry.hpp"

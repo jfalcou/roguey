@@ -28,6 +28,7 @@ find_package(Lua REQUIRED)
 ## Source code
 ##==================================================================================================
 set(SOURCES
+    src/color.cpp
     src/dungeon.cpp
     src/game.cpp
     src/main.cpp

@@ -12,32 +12,35 @@
 #include <string>
 #include <vector>
 
-class Renderer;
-
-struct LogEntry
+namespace roguey
 {
-  std::string text;
-  std::string color;
-};
+  class Renderer;
 
-class MessageLog
-{
-public:
-  std::vector<LogEntry> messages;
-  std::size_t const max_messages = 10;
+  struct LogEntry
+  {
+    std::string text;
+    std::string color;
+  };
 
-  void add(std::string msg, std::string const& color = "ui_default");
-};
+  class MessageLog
+  {
+  public:
+    std::vector<LogEntry> messages;
+    std::size_t const max_messages = 10;
 
-namespace Systems
-{
-  EntityID get_entity_at(Registry const& reg, int x, int y);
-  void check_level_up(Registry& reg, MessageLog& log, sol::state& lua);
-  void attack(Registry& reg, EntityID a_id, EntityID d_id, MessageLog& log, sol::state& lua);
+    void add(std::string msg, std::string const& color = "ui_default");
+  };
 
-  void cast_fireball(Registry& reg, Dungeon& map, int dx, int dy, MessageLog& log, Renderer& renderer);
-  void move_monsters(Registry& reg, Dungeon const& map, MessageLog& log, sol::state& lua);
+  namespace Systems
+  {
+    EntityID get_entity_at(Registry const& reg, int x, int y);
+    void check_level_up(Registry& reg, MessageLog& log, sol::state& lua);
+    void attack(Registry& reg, EntityID a_id, EntityID d_id, MessageLog& log, sol::state& lua);
 
-  std::string binary_path();
-  void set_binary_path(std::string_view new_path);
+    void cast_fireball(Registry& reg, Dungeon& map, int dx, int dy, MessageLog& log, Renderer& renderer);
+    void move_monsters(Registry& reg, Dungeon const& map, MessageLog& log, sol::state& lua);
+
+    std::string binary_path();
+    void set_binary_path(std::string_view new_path);
+  }
 }

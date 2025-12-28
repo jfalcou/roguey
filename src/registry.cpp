@@ -9,18 +9,19 @@
 #include "registry.hpp"
 #include <algorithm>
 
-void Registry::destroy_entity(EntityID id)
+namespace roguey
 {
-  positions.erase(id);
-  renderables.erase(id);
-  stats.erase(id);
-  items.erase(id);
-  names.erase(id);
-  script_paths.erase(id);
-  monster_types.erase(id);
+  void Registry::destroy_entity(EntityID id)
+  {
+    positions.erase(id);
+    renderables.erase(id);
+    stats.erase(id);
+    items.erase(id);
+    names.erase(id);
+    script_paths.erase(id);
+    monster_types.erase(id);
 
-  std::erase(monsters, id);
-  if (id == boss_id) boss_id = 0;
+    std::erase(monsters, id);
+    if (id == boss_id) boss_id = 0;
+  }
 }
-
-// why the change

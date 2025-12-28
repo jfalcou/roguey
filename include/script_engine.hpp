@@ -12,20 +12,23 @@
 #include <string>
 #include <vector>
 
-class ScriptEngine
+namespace roguey
 {
-public:
-  sol::state lua;
-  sol::table configuration;
-  bool is_valid;
-  std::vector<std::string> class_templates;
+  class ScriptEngine
+  {
+  public:
+    sol::state lua;
+    sol::table configuration;
+    bool is_valid;
+    std::vector<std::string> class_templates;
 
-  ScriptEngine(std::string const& main_script);
+    ScriptEngine(std::string const& main_script);
 
-  bool load_script(std::string const& path);
-  std::string pick_from_weights(sol::table weights, std::mt19937& gen);
+    bool load_script(std::string const& path);
+    std::string pick_from_weights(sol::table weights, std::mt19937& gen);
 
-private:
-  void init_lua();
-  void discover_assets();
-};
+  private:
+    void init_lua();
+    void discover_assets();
+  };
+}
