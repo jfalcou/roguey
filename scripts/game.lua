@@ -7,30 +7,28 @@
 game_colors = {
     -- UI Colors
     ui_default    = "#DCDCDC",
-    ui_border     = "#6495ED",
+    ui_border     = "#763a05",
+    ui_gold       = "#FFD700",
+    ui_text       = "#c6c6c6",
     ui_hidden     = "#3C3C3C",
     ui_failure    = { fg = "#FFFFFF", bg = "#DC143C" },
-
-    ui_gold       = "#FFD700",
-    ui_emphasis   = "#FF8C00",
-
+    ui_emphasis   = "#726209",
+    ui_hp         = "#FF0000",
+    ui_mp         = "#0000FF",
     -- Assets
     asset_floor   = "#282828",
     asset_dirt    = "#8B4513",
     asset_wall    = "#778899",
     asset_tree    = "#228B22",
-
     -- Entities
     entity_player = "#00FFFF",
     entity_orc    = "#9ACD32",
     entity_boss   = "#9400D3",
     entity_slime  = { fg = "#9ACD32", bg = "#055315" },
-
     -- Items
     item_gold       = "#FFD700",
     item_hp_potion  = "#FF6347",
     item_dmg_potion = "#8A2BE2",
-
     -- FX
     fx_fire         = "#FF4500"
 }
@@ -50,6 +48,6 @@ function get_start_config()
     return {
         start_level = "scripts/levels/forest.lua",
         start_depth = 1,
-        initial_log_message = "Welcome adventurer !"
+        initial_log_message = "The adventure begins... "
     }
 end

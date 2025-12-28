@@ -108,7 +108,7 @@ void Game::handle_setup_input(ftxui::Event event)
       if (!input_buffer.empty())
       {
         reg.player_name = input_buffer;
-        log.add("Welcome, " + reg.player_name + "!", "ui_gold");
+        log.add("Welcome, " + reg.player_name + "!", "ui_text");
         setup_step = 1;
       }
     }

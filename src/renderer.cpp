@@ -207,31 +207,32 @@ Element Renderer::render_dungeon(Dungeon const& map,
   }
 
   auto s = reg.stats.at(player_id);
-  std::string status = "HP: " + std::to_string(s.hp) + "/" + std::to_string(s.max_hp) +
-                       " | MP: " + std::to_string(s.mana) + "/" + std::to_string(s.max_mana) +
-                       " | Depth: " + std::to_string(depth);
+  auto status_line =
+    hbox({text("HP: "), text(std::to_string(s.hp) + "/" + std::to_string(s.max_hp)) | get_style("ui_hp"),
+          text(" | MP: "), text(std::to_string(s.mana) + "/" + std::to_string(s.max_mana)) | get_style("ui_mp"),
+          text(" | Depth: " + std::to_string(depth))}) |
+    center | get_style("ui_default");
 
-  return window(
-           text(" " + title + " ") | get_style("ui_border"),
-           vbox({vbox(std::move(grid_rows)) | flex, separator(), text(status) | center, separator(), draw_log(log)})) |
-         flex;
+  return window(text(" " + title + " ") | get_style("ui_border"),
+                vbox({vbox(std::move(grid_rows)) | flex, separator(), status_line, separator(), draw_log(log)})) |
+         get_style("ui_border") | flex;
 }
 
 Element Renderer::render_inventory(std::vector<ItemTag> const& inventory, MessageLog const& log)
 {
   Elements items;
-  if (inventory.empty()) items.push_back(text("(Empty)"));
+  if (inventory.empty()) items.push_back(text("(Empty)") | center);
   else
   {
     for (size_t i = 0; i < inventory.size(); ++i)
     {
-      items.push_back(text("[" + std::to_string(i + 1) + "] " + inventory[i].name));
+      items.push_back(text("[" + std::to_string(i + 1) + "] " + inventory[i].name) | center);
     }
   }
 
   return window(text(" Inventory ") | get_style("ui_border"),
-                vbox({vbox(std::move(items)) | flex, separator(), text("[1-9] Use Item | [I/ESC] Close") | center,
-                      separator(), draw_log(log)})) |
+                vbox({filler(), vbox(std::move(items)) | center, filler(), separator(),
+                      text("[1-9] Use Item | [I/ESC] Close") | center, separator(), draw_log(log)})) |
          flex;
 }
 
@@ -242,31 +243,38 @@ Element Renderer::render_stats(Registry const& reg, int player_id, std::string p
   auto s = reg.stats.at(player_id);
 
   return window(text(" Stats ") | get_style("ui_border"),
-                vbox({text("Name:   " + player_name), text("Class:  " + s.archetype),
-                      text("Level:  " + std::to_string(s.level)), text("XP:     " + std::to_string(s.xp)),
-                      text("HP:     " + std::to_string(s.hp) + " / " + std::to_string(s.max_hp)),
-                      text("Mana:   " + std::to_string(s.mana) + " / " + std::to_string(s.max_mana)),
-                      text("Damage: " + std::to_string(s.damage)), text("FOV:    " + std::to_string(s.fov_range)),
-                      text("Gold:   " + std::to_string(s.gold)), filler(), separator(), text("[C/ESC] Close") | center,
-                      separator(), draw_log(log)})) |
+                vbox({filler(),
+                      vbox({text("Name:   " + player_name), text("Class:  " + s.archetype),
+                            text("Level:  " + std::to_string(s.level)), text("XP:     " + std::to_string(s.xp)),
+                            text("HP:     " + std::to_string(s.hp) + " / " + std::to_string(s.max_hp)),
+                            text("Mana:   " + std::to_string(s.mana) + " / " + std::to_string(s.max_mana)),
+                            text("Damage: " + std::to_string(s.damage)), text("FOV:    " + std::to_string(s.fov_range)),
+                            text("Gold:   " + std::to_string(s.gold))}) |
+                        center,
+                      filler(), separator(), text("[C/ESC] Close") | center, separator(), draw_log(log)})) |
          flex;
 }
 
 Element Renderer::render_help(MessageLog const& log, std::string const& help_text)
 {
-  return window(
-           text(" HELP ") | get_style("ui_border"),
-           vbox({paragraph(help_text) | flex, separator(), text("[ESC] Back") | center, separator(), draw_log(log)})) |
+  Elements lines;
+  std::stringstream ss(help_text);
+  std::string line;
+  while (std::getline(ss, line)) { lines.push_back(text(line) | flex); }
+
+  return window(text(" HELP ") | get_style("ui_border"),
+                vbox({filler(), vbox(std::move(lines)) | center, filler(), separator(), text("[ESC] Back") | center,
+                      separator(), draw_log(log)})) |
          flex;
 }
 
 Element Renderer::render_character_creation(std::string const& current_name, MessageLog const& log)
 {
   return window(text(" Create Your Hero ") | get_style("ui_border"),
-                vbox({filler(), text("Enter your name:") | center,
+                vbox({filler(), text("Enter your name:") | bold | get_style("ui_emphasis") | center,
                       text(current_name + "_") | bold | center | get_style("ui_gold"), filler(), separator(),
                       draw_log(log)})) |
-         center;
+         get_style("ui_border") | flex;
 }
 
 Element Renderer::render_class_selection(std::vector<std::string> const& classes, int selection, MessageLog const& log)
@@ -279,10 +287,11 @@ Element Renderer::render_class_selection(std::vector<std::string> const& classes
     else { options.push_back(text("  " + name + "  ") | center); }
   }
 
-  return window(text(" Select Class ") | get_style("ui_border"),
-                vbox({filler(), text("Choose your path:") | center, vbox(std::move(options)) | center, filler(),
-                      separator(), draw_log(log)})) |
-         center;
+  return window(
+           text(" Select Class ") | get_style("ui_border"),
+           vbox({filler(), text("Choose your path:") | center | get_style("ui_text"),
+                 vbox(std::move(options) | get_style("ui_text")) | center, filler(), separator(), draw_log(log)})) |
+         get_style("ui_border") | flex;
 }
 
 Element Renderer::render_game_over(MessageLog const& log)
@@ -290,7 +299,7 @@ Element Renderer::render_game_over(MessageLog const& log)
   return window(text(" GAME OVER ") | get_style("ui_failure"),
                 vbox({filler(), text(" !!! YOU DIED !!! ") | bold | center | get_style("ui_failure"),
                       text("Press 'r' to Restart, 'q' to Quit") | center, filler(), separator(), draw_log(log)})) |
-         center;
+         flex;
 }
 
 Element Renderer::render_victory(MessageLog const& log)
@@ -298,5 +307,5 @@ Element Renderer::render_victory(MessageLog const& log)
   return window(text(" VICTORY ") | get_style("ui_gold"),
                 vbox({filler(), text(" !!! VICTORY !!! ") | bold | center | get_style("ui_gold"),
                       text("Press 'c' to Continue, 'q' to Quit") | center, filler(), separator(), draw_log(log)})) |
-         center;
+         flex;
 }
