@@ -9,476 +9,294 @@
 #include "renderer.hpp"
 #include <algorithm>
 #include <filesystem>
-#include <locale.h>
-#include <ncurses.h>
+#include <ftxui/dom/elements.hpp>
+#include <ftxui/screen/color.hpp>
+#include <ftxui/screen/terminal.hpp>
+#include <iostream>
 #include <sstream>
 
 namespace fs = std::filesystem;
+using namespace ftxui;
 
-Renderer::Renderer()
+// --- Helper: Parse Hex Color ---
+// Supports #RRGGBB and #RGB formats
+static Color parse_hex_color(std::string const& hex_str)
 {
-  setlocale(LC_ALL, "");
-  initscr();
-  start_color();
-  noecho();
-  curs_set(0);
-  keypad(stdscr, TRUE);
-  set_escdelay(25);
-  getmaxyx(stdscr, screen_height, screen_width);
-}
+  if (hex_str.empty() || hex_str[0] != '#') return Color::White;
 
-Renderer::~Renderer()
-{
-  endwin();
-}
+  std::string clean = hex_str.substr(1);
+  int r = 0, g = 0, b = 0;
 
-void Renderer::set_window_size(int w, int h)
-{
-  screen_width = w;
-  screen_height = h;
-  resize_term(h, w);
-}
-
-int Renderer::get_color(std::string const& name, int def) const
-{
-  if (lua_state) return (*lua_state)[name].get_or(COLOR_PAIR(def));
-  return COLOR_PAIR(def);
-}
-
-void Renderer::setup_window(ScriptEngine& scripts)
-{
-  // Process the color table
-  this->lua_state = &scripts.lua;
-  sol::table color_table = scripts.lua["game_colors"];
-  for (std::size_t i = 1; i <= color_table.size(); ++i)
+  if (clean.length() == 6)
   {
-    sol::table entry = color_table[i];
-    int id = static_cast<int>(i);
-    init_pair(id, entry[1], entry[2]);
-
-    bool is_bright = entry[3].get_or(false);
-    int final_attr = COLOR_PAIR(id);
-    if (is_bright) final_attr |= A_BOLD;
-
-    scripts.lua[entry[4]] = final_attr;
+    std::stringstream ss;
+    ss << std::hex << clean;
+    unsigned int value;
+    ss >> value;
+    r = (value >> 16) & 0xFF;
+    g = (value >> 8) & 0xFF;
+    b = value & 0xFF;
+  }
+  else if (clean.length() == 3)
+  {
+    std::stringstream ss;
+    ss << std::hex << clean;
+    unsigned int value;
+    ss >> value;
+    // Expand 0xRGB to 0xRRGGBB
+    r = ((value >> 8) & 0xF) * 17;
+    g = ((value >> 4) & 0xF) * 17;
+    b = (value & 0xF) * 17;
   }
 
-  // Setup the windows display
-  int w = scripts.configuration["window_width"].get_or(80);
-  int h = scripts.configuration["window_height"].get_or(48);
-  set_window_size(w, h);
+  return Color::RGB(static_cast<uint8_t>(r), static_cast<uint8_t>(g), static_cast<uint8_t>(b));
 }
 
-void Renderer::clear_screen()
+Renderer::Renderer() {}
+
+Renderer::~Renderer() {}
+
+void Renderer::load_colors(sol::state& lua)
 {
-  clear();
-}
+  sol::table table = lua["game_colors"];
+  if (!table.valid()) return;
 
-void Renderer::refresh_screen()
-{
-  refresh();
-}
-
-void Renderer::show_error(std::string const& msg)
-{
-  clear();
-  attron(A_BOLD);
-  mvprintw(10, 10, "CRITICAL ERROR:");
-  attroff(A_BOLD);
-  mvprintw(12, 10, "%s", msg.c_str());
-  mvprintw(14, 10, "[ Press any key to exit ]");
-  refresh();
-  getch();
-}
-
-int Renderer::clamp(int val, int min, int max)
-{
-  if (val < min) return min;
-  if (val > max) return max;
-  return val;
-}
-
-void Renderer::draw_borders(int sx, int sy, int w, int h, std::string const& title, int separator_y)
-{
-  int cid = get_color("ui_border");
-  attron(cid);
-
-  // Corners
-  mvaddch(sy, sx, ACS_ULCORNER);
-  mvaddch(sy, sx + w + 1, ACS_URCORNER);
-  mvaddch(sy + h + 1, sx, ACS_LLCORNER);
-  mvaddch(sy + h + 1, sx + w + 1, ACS_LRCORNER);
-
-  // Horizontals
-  for (int x = 1; x <= w; ++x)
+  // Iterate over the Lua table
+  for (auto const& [key, val] : table.as<std::map<std::string, sol::object>>())
   {
-    mvaddch(sy, sx + x, ACS_HLINE);
-    mvaddch(sy + h + 1, sx + x, ACS_HLINE);
-  }
+    ThemeStyle style;
 
-  // Verticals
-  for (int y = 1; y <= h; ++y)
-  {
-    mvaddch(sy + y, sx, ACS_VLINE);
-    mvaddch(sy + y, sx + w + 1, ACS_VLINE);
-  }
-
-  // Separator
-  if (separator_y > 0 && separator_y < h)
-  {
-    int real_sep_y = sy + separator_y;
-    mvaddch(real_sep_y, sx, ACS_LTEE);
-    mvaddch(real_sep_y, sx + w + 1, ACS_RTEE);
-    for (int x = 1; x <= w; ++x) { mvaddch(real_sep_y, sx + x, ACS_HLINE); }
-  }
-
-  if (!title.empty())
-  {
-    std::string label = "[ " + title + " ]";
-    if (static_cast<int>(label.length()) <= w)
+    // Case 1: Value is a simple string "#RRGGBB" (Foreground only)
+    if (val.is<std::string>())
     {
-      int label_x = sx + 1 + (w - static_cast<int>(label.length())) / 2;
-      mvprintw(sy, label_x, "%s", label.c_str());
+      style.fg = parse_hex_color(val.as<std::string>());
+      style.has_bg = false;
     }
-  }
-
-  attroff(cid);
-}
-
-void Renderer::draw_log(MessageLog const& log, int start_y, int max_row, int max_col)
-{
-  int limit_y = max_row;
-  int visible_lines = limit_y - start_y + 1;
-
-  if (visible_lines <= 0) return;
-
-  int msg_count = static_cast<int>(log.messages.size());
-  int start_index = 0;
-  if (msg_count > visible_lines) { start_index = msg_count - visible_lines; }
-
-  int draw_y = start_y;
-  for (int i = start_index; i < msg_count; ++i)
-  {
-    if (draw_y > limit_y) break;
-    wmove(stdscr, draw_y, 2);
-
-    int available_width = max_col - 2;
-
-    std::string txt = log.messages[i].text;
-    if (static_cast<int>(txt.length()) > available_width) { txt = txt.substr(0, available_width); }
-
-    auto color_id = get_color(log.messages[i].color);
-
-    attron(color_id);
-    printw("> %s", txt.c_str());
-    attroff(color_id);
-
-    int cx, cy;
-    getyx(stdscr, cy, cx);
-    while (cx < max_col)
+    // Case 2: Value is a table { fg="#...", bg="#..." }
+    else if (val.is<sol::table>())
     {
-      addch(' ');
-      cx++;
-    }
+      sol::table t = val.as<sol::table>();
 
-    draw_y++;
-  }
-}
+      // Foreground
+      std::string fg_str = t["fg"].get_or<std::string>("#FFFFFF");
+      style.fg = parse_hex_color(fg_str);
 
-void Renderer::draw_dungeon(Dungeon const& map,
-                            Registry const& reg,
-                            MessageLog const& log,
-                            int player_id,
-                            int depth,
-                            int wall_color,
-                            int floor_color,
-                            std::string const& level_name)
-{
-  int max_y = screen_height;
-  int max_x = screen_width;
-
-  int log_height = 6;
-  int stats_lines = 1;
-
-  int ui_overhead = 2 + log_height + 1 + stats_lines;
-
-  int max_map_h = max_y - ui_overhead;
-  int max_map_w = max_x - 2;
-
-  int view_w = max_map_w;
-  int view_h = max_map_h;
-
-  int frame_h = view_h + 1 + 1 + log_height;
-
-  if (frame_h > max_y - 2) frame_h = max_y - 2;
-
-  Position p = {0, 0};
-  if (reg.positions.count(player_id)) p = reg.positions.at(player_id);
-
-  int cam_x, cam_y;
-
-  if (map.width < view_w) { cam_x = -(view_w - map.width) / 2; }
-  else
-  {
-    cam_x = p.x - (view_w / 2);
-    cam_x = clamp(cam_x, 0, map.width - view_w);
-  }
-
-  if (map.height < view_h) { cam_y = -(view_h - map.height) / 2; }
-  else
-  {
-    cam_y = p.y - (view_h / 2);
-    cam_y = clamp(cam_y, 0, map.height - view_h);
-  }
-
-  // Update stored camera position for other effects (like projectiles)
-  last_cam_x = cam_x;
-  last_cam_y = cam_y;
-
-  draw_borders(0, 0, view_w, frame_h, level_name, view_h + 2);
-
-  for (int vy = 0; vy < view_h; ++vy)
-  {
-    for (int vx = 0; vx < view_w; ++vx)
-    {
-      int wx = cam_x + vx;
-      int wy = cam_y + vy;
-
-      if (wx < 0 || wx >= map.width || wy < 0 || wy >= map.height) continue;
-
-      if (map.visible_tiles.count({wx, wy}))
+      // Background (Optional)
+      sol::optional<std::string> bg_str = t["bg"];
+      if (bg_str)
       {
-        int col_attr = map.grid(wx, wy) == '#' ? wall_color : floor_color;
-
-        attron(col_attr);
-        mvaddch(vy + 1, vx + 1, map.grid(wx, wy));
-        attroff(col_attr);
-      }
-      else if (map.explored(wx, wy))
-      {
-        attron(get_color("ui_hidden"));
-        mvaddch(vy + 1, vx + 1, map.grid(wx, wy));
-        attroff(get_color("ui_hidden"));
+        style.bg = parse_hex_color(bg_str.value());
+        style.has_bg = true;
       }
     }
+
+    style_cache[key] = style;
+
+    // Inject key back into Lua so scripts can reference 'ui_gold' etc.
+    lua[key] = key;
   }
+}
 
-  for (auto const& [id, r] : reg.renderables)
-  {
-    if (!reg.positions.count(id)) continue;
-    Position pos = reg.positions.at(id);
+Decorator Renderer::get_style(std::string const& name) const
+{
+  auto it = style_cache.find(name);
+  if (it != style_cache.end()) { return it->second.decorator(); }
 
-    if (pos.x >= cam_x && pos.x < cam_x + view_w && pos.y >= cam_y && pos.y < cam_y + view_h)
-    {
-
-      if (id == player_id || map.visible_tiles.count(pos))
-      {
-        attron(r.color);
-        mvaddch((pos.y - cam_y) + 1, (pos.x - cam_x) + 1, r.glyph);
-        attroff(r.color);
-      }
-    }
-  }
-
-  if (reg.stats.contains(player_id))
-  {
-    auto s = reg.stats.at(player_id);
-    mvprintw(view_h + 1, 2, "HP: %d/%d | MP: %d/%d | Depth: %d", s.hp, s.max_hp, s.mana, s.max_mana, depth);
-  }
-
-  draw_log(log, view_h + 3, view_h + 2 + log_height, view_w + 1);
+  // Default fallback
+  return color(Color::White);
 }
 
 void Renderer::animate_projectile(int x, int y, char glyph, std::string const& color)
 {
-  // Convert map coordinates to screen coordinates using the last camera position
-  int sx = x - last_cam_x + 1;
-  int sy = y - last_cam_y + 1;
-
-  auto c = get_color(color);
-  attron(c);
-  mvaddch(sy, sx, glyph);
-  attroff(c);
-  refresh();
-  napms(50);
+  // Stub
 }
 
-void Renderer::draw_inventory(std::vector<ItemTag> const& inventory, MessageLog const& log)
+Element Renderer::draw_log(MessageLog const& log)
 {
-  int ui_width = screen_width - 2;
-  int ui_height = screen_height - 2;
-  int log_height = 6;
-  int separator_y = ui_height - log_height - 1;
+  Elements list;
+  int start_index = std::max(0, (int)log.messages.size() - 6);
 
-  draw_borders(0, 0, ui_width, ui_height, "INVENTORY", separator_y);
+  for (size_t i = start_index; i < log.messages.size(); ++i)
+  {
+    list.push_back(text(log.messages[i].text) | get_style(log.messages[i].color));
+  }
 
-  if (inventory.empty()) { mvprintw(4, 6, "(Empty)"); }
+  return vbox(std::move(list)) | size(HEIGHT, EQUAL, 6);
+}
+
+Element Renderer::render_dungeon(Dungeon const& map,
+                                 Registry const& reg,
+                                 MessageLog const& log,
+                                 int player_id,
+                                 int depth,
+                                 std::string const& title,
+                                 std::string const& wall_color,
+                                 std::string const& floor_color)
+{
+  auto term_size = Terminal::Size();
+  int overhead_y = 11;
+  int overhead_x = 2;
+
+  int view_w = term_size.dimx - overhead_x;
+  int view_h = term_size.dimy - overhead_y;
+
+  if (view_w < 10) view_w = 10;
+  if (view_h < 5) view_h = 5;
+
+  Position p = {0, 0};
+  if (reg.positions.count(player_id)) p = reg.positions.at(player_id);
+
+  int cam_x = std::clamp(p.x - view_w / 2, 0, std::max(0, map.width - view_w));
+  int cam_y = std::clamp(p.y - view_h / 2, 0, std::max(0, map.height - view_h));
+
+  last_cam_x = cam_x;
+  last_cam_y = cam_y;
+
+  Elements grid_rows;
+
+  for (int y = 0; y < view_h; ++y)
+  {
+    Elements row_cells;
+    int wy = cam_y + y;
+
+    for (int x = 0; x < view_w; ++x)
+    {
+      int wx = cam_x + x;
+
+      if (wx >= map.width || wy >= map.height)
+      {
+        row_cells.push_back(text(" "));
+        continue;
+      }
+
+      bool entity_drawn = false;
+      for (auto const& [id, r] : reg.renderables)
+      {
+        if (reg.positions.count(id))
+        {
+          Position ep = reg.positions.at(id);
+          if (ep.x == wx && ep.y == wy)
+          {
+            if (id == player_id || map.visible_tiles.count({wx, wy}))
+            {
+              std::string g(1, r.glyph);
+              // Now uses get_style which supports BG
+              row_cells.push_back(text(g) | get_style(r.color));
+              entity_drawn = true;
+              break;
+            }
+          }
+        }
+      }
+
+      if (entity_drawn) continue;
+
+      if (map.visible_tiles.count({wx, wy}))
+      {
+        char tile = map.grid(wx, wy);
+        std::string c_key = (tile == '#') ? wall_color : floor_color;
+        row_cells.push_back(text(std::string(1, tile)) | get_style(c_key));
+      }
+      else if (map.explored(wx, wy))
+      {
+        row_cells.push_back(text(std::string(1, map.grid(wx, wy))) | get_style("ui_hidden"));
+      }
+      else { row_cells.push_back(text(" ")); }
+    }
+    grid_rows.push_back(hbox(std::move(row_cells)));
+  }
+
+  auto s = reg.stats.at(player_id);
+  std::string status = "HP: " + std::to_string(s.hp) + "/" + std::to_string(s.max_hp) +
+                       " | MP: " + std::to_string(s.mana) + "/" + std::to_string(s.max_mana) +
+                       " | Depth: " + std::to_string(depth);
+
+  return window(
+           text(" " + title + " ") | get_style("ui_border"),
+           vbox({vbox(std::move(grid_rows)) | flex, separator(), text(status) | center, separator(), draw_log(log)})) |
+         flex;
+}
+
+Element Renderer::render_inventory(std::vector<ItemTag> const& inventory, MessageLog const& log)
+{
+  Elements items;
+  if (inventory.empty()) items.push_back(text("(Empty)"));
   else
   {
-    for (std::size_t i = 0; i < inventory.size(); ++i)
+    for (size_t i = 0; i < inventory.size(); ++i)
     {
-      if (4 + i >= static_cast<std::size_t>(separator_y) - 1) break;
-      mvprintw(4 + i, 6, "[%zu] %s", i + 1, inventory[i].name.c_str());
+      items.push_back(text("[" + std::to_string(i + 1) + "] " + inventory[i].name));
     }
   }
 
-  mvprintw(separator_y - 1, 2, "[1-9] Use Item | [I/ESC] Close");
-  draw_log(log, separator_y + 1, ui_height, ui_width + 1);
+  return window(text(" Inventory ") | get_style("ui_border"),
+                vbox({vbox(std::move(items)) | flex, separator(), text("[1-9] Use Item | [I/ESC] Close") | center,
+                      separator(), draw_log(log)})) |
+         flex;
 }
 
-void Renderer::draw_stats(Registry const& reg, int player_id, std::string player_name, MessageLog const& log)
+Element Renderer::render_stats(Registry const& reg, int player_id, std::string player_name, MessageLog const& log)
 {
-  int ui_width = screen_width - 2;
-  int ui_height = screen_height - 2;
-  int log_height = 6;
-  int separator_y = ui_height - log_height - 1;
+  if (!reg.stats.contains(player_id)) return text("Error: No Stats");
 
-  draw_borders(0, 0, ui_width, ui_height, "STATS", separator_y);
-
-  if (!reg.stats.contains(player_id)) return;
   auto s = reg.stats.at(player_id);
 
-  mvprintw(3, 6, "Name:   %s", player_name.c_str());
-  mvprintw(4, 6, "Class:  %s", s.archetype.c_str());
-  mvprintw(5, 6, "Level:  %d", s.level);
-  mvprintw(6, 6, "XP:     %d", s.xp);
-  mvprintw(8, 6, "HP:     %d / %d", s.hp, s.max_hp);
-  mvprintw(9, 6, "Mana:   %d / %d", s.mana, s.max_mana);
-  mvprintw(10, 6, "Damage: %d", s.damage);
-  mvprintw(11, 6, "FOV:    %d", s.fov_range);
-  mvprintw(12, 6, "Gold:   %d", s.gold);
-
-  mvprintw(separator_y - 1, 2, "[C/ESC] Close");
-  draw_log(log, separator_y + 1, ui_height, ui_width + 1);
+  return window(text(" Stats ") | get_style("ui_border"),
+                vbox({text("Name:   " + player_name), text("Class:  " + s.archetype),
+                      text("Level:  " + std::to_string(s.level)), text("XP:     " + std::to_string(s.xp)),
+                      text("HP:     " + std::to_string(s.hp) + " / " + std::to_string(s.max_hp)),
+                      text("Mana:   " + std::to_string(s.mana) + " / " + std::to_string(s.max_mana)),
+                      text("Damage: " + std::to_string(s.damage)), text("FOV:    " + std::to_string(s.fov_range)),
+                      text("Gold:   " + std::to_string(s.gold)), filler(), separator(), text("[C/ESC] Close") | center,
+                      separator(), draw_log(log)})) |
+         flex;
 }
 
-void Renderer::draw_help(MessageLog const& log, std::string const& help_text)
+Element Renderer::render_help(MessageLog const& log, std::string const& help_text)
 {
-  int ui_width = screen_width - 2;
-  int ui_height = screen_height - 2;
-  int log_height = 6;
-  int separator_y = ui_height - log_height - 1;
+  return window(
+           text(" HELP ") | get_style("ui_border"),
+           vbox({paragraph(help_text) | flex, separator(), text("[ESC] Back") | center, separator(), draw_log(log)})) |
+         flex;
+}
 
-  draw_borders(0, 0, ui_width, ui_height, "HELP", separator_y);
+Element Renderer::render_character_creation(std::string const& current_name, MessageLog const& log)
+{
+  return window(text(" Create Your Hero ") | get_style("ui_border"),
+                vbox({filler(), text("Enter your name:") | center,
+                      text(current_name + "_") | bold | center | get_style("ui_gold"), filler(), separator(),
+                      draw_log(log)})) |
+         center;
+}
 
-  int start_y = 4;
-  int start_x = 6;
-
-  std::stringstream ss(help_text);
-  std::string line;
-  int i = 0;
-  while (std::getline(ss, line, '\n'))
+Element Renderer::render_class_selection(std::vector<std::string> const& classes, int selection, MessageLog const& log)
+{
+  Elements options;
+  for (size_t i = 0; i < classes.size(); ++i)
   {
-    if (start_y + i >= separator_y - 1) break;
-    mvprintw(start_y + i, start_x, "%s", line.c_str());
-    i++;
+    std::string name = fs::path(classes[i]).stem().string();
+    if ((int)i == selection) { options.push_back(text("[ " + name + " ]") | bold | get_style("ui_gold") | center); }
+    else { options.push_back(text("  " + name + "  ") | center); }
   }
 
-  mvprintw(separator_y - 1, 2, "[ESC] Back");
-  draw_log(log, separator_y + 1, ui_height, ui_width + 1);
+  return window(text(" Select Class ") | get_style("ui_border"),
+                vbox({filler(), text("Choose your path:") | center, vbox(std::move(options)) | center, filler(),
+                      separator(), draw_log(log)})) |
+         center;
 }
 
-void Renderer::draw_character_creation_header(MessageLog const& log)
+Element Renderer::render_game_over(MessageLog const& log)
 {
-  clear();
-  int ui_width = screen_width - 2;
-  int ui_height = screen_height - 2;
-  int log_height = 6;
-  int separator_y = ui_height - log_height - 1;
-
-  draw_borders(0, 0, ui_width, ui_height, "CREATE YOUR HERO", separator_y);
-
-  int upper_center_y = separator_y / 2;
-  std::string prompt = "Enter your name: ";
-
-  mvprintw(upper_center_y, (screen_width - 20) / 2, "%s", prompt.c_str());
-
-  draw_log(log, separator_y + 1, ui_height, ui_width + 1);
-
-  int prompt_x = (screen_width - 20) / 2;
-  move(upper_center_y, prompt_x + prompt.length());
-  refresh();
+  return window(text(" GAME OVER ") | get_style("ui_failure"),
+                vbox({filler(), text(" !!! YOU DIED !!! ") | bold | center | get_style("ui_failure"),
+                      text("Press 'r' to Restart, 'q' to Quit") | center, filler(), separator(), draw_log(log)})) |
+         center;
 }
 
-void Renderer::draw_class_selection(std::vector<std::string> const& class_paths, int selection, MessageLog const& log)
+Element Renderer::render_victory(MessageLog const& log)
 {
-  clear();
-  int ui_width = screen_width - 2;
-  int ui_height = screen_height - 2;
-  int log_height = 6;
-  int separator_y = ui_height - log_height - 1;
-
-  draw_borders(0, 0, ui_width, ui_height, "CREATE YOUR HERO", separator_y);
-
-  std::string subtitle = "Select your Class";
-
-  int content_h = class_paths.size() + 2 + 2;
-  int start_y = (separator_y - content_h) / 2;
-  if (start_y < 1) start_y = 1;
-
-  mvprintw(start_y, (screen_width - subtitle.length()) / 2, "%s", subtitle.c_str());
-
-  for (std::size_t i = 0; i < class_paths.size(); ++i)
-  {
-    if (start_y + 2 + static_cast<int>(i) >= separator_y) break;
-
-    std::string name = fs::path(class_paths[i]).stem().string();
-    std::string display = "[ " + name + " ]";
-    int x_pos = (screen_width - display.length()) / 2;
-
-    if (static_cast<int>(i) == selection) attron(A_REVERSE);
-    mvprintw(start_y + 2 + i, x_pos, "%s", display.c_str());
-    attroff(A_REVERSE);
-  }
-
-  draw_log(log, separator_y + 1, ui_height, ui_width + 1);
-  refresh();
-}
-
-void Renderer::draw_game_over(MessageLog const& log)
-{
-  clear();
-  int ui_width = screen_width - 2;
-  int ui_height = screen_height - 2;
-  int log_height = 6;
-  int separator_y = ui_height - log_height - 1;
-
-  draw_borders(0, 0, ui_width, ui_height, "GAME OVER", separator_y);
-
-  int center_y = separator_y / 2;
-
-  attron(get_color("ui_failure"));
-  std::string title = " !!! YOU DIED !!! ";
-  mvprintw(center_y - 2, (screen_width - title.length()) / 2, "%s", title.c_str());
-  attroff(get_color("ui_failure"));
-
-  std::string sub = "Press 'r' to Restart, 'q' to Quit";
-  mvprintw(center_y + 1, (screen_width - sub.length()) / 2, "%s", sub.c_str());
-
-  draw_log(log, separator_y + 1, ui_height, ui_width + 1);
-  refresh();
-}
-
-void Renderer::draw_victory(MessageLog const& log)
-{
-  clear();
-  int ui_width = screen_width - 2;
-  int ui_height = screen_height - 2;
-  int log_height = 6;
-  int separator_y = ui_height - log_height - 1;
-
-  draw_borders(0, 0, ui_width, ui_height, "VICTORY", separator_y);
-
-  int center_y = separator_y / 2;
-
-  attron(A_BOLD | COLOR_PAIR(get_color("ui_gold")));
-  std::string title = " !!! VICTORY !!! ";
-  mvprintw(center_y - 2, (screen_width - title.length()) / 2, "%s", title.c_str());
-  attroff(A_BOLD | COLOR_PAIR(get_color("ui_gold")));
-
-  std::string sub = "Press 'c' to Continue, 'q' to Quit";
-  mvprintw(center_y + 1, (screen_width - sub.length()) / 2, "%s", sub.c_str());
-
-  draw_log(log, separator_y + 1, ui_height, ui_width + 1);
-  refresh();
+  return window(text(" VICTORY ") | get_style("ui_gold"),
+                vbox({filler(), text(" !!! VICTORY !!! ") | bold | center | get_style("ui_gold"),
+                      text("Press 'c' to Continue, 'q' to Quit") | center, filler(), separator(), draw_log(log)})) |
+         center;
 }

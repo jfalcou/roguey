@@ -5,29 +5,34 @@
 --==================================================================================================
 
 game_colors = {
--- UI COLOR
-    { 7, 0, false, "ui_default" }
-  , { 7, 0, true , "ui_border"  }
-  , { 8, 0, true , "ui_hidden"  }
-  , { 1, 0, true , "ui_failure" }
-  , { 3, 0, true , "ui_gold"    }
-  , { 1, 0, true , "ui_emphasis"}
--- ASSET COLOR
-  , { 7, 0, false, "asset_floor" }
-  , { 3, 0, false, "asset_dirt" }
-  , { 7, 0, false, "asset_wall" }
-  , { 2, 0, false, "asset_tree" }
--- ENTITY COLOR
-  , { 6, 0, false, "entity_player" }
-  , { 1, 0, false, "entity_orc" }
-  , { 5, 0, false, "entity_boss" }
-  , { 2, 3, true , "entity_slime" }
--- ITEMS
-  , { 3, 0, true , "item_gold"      }
-  , { 1, 0, true , "item_hp_potion" }
-  , { 5, 0, false, "item_dmg_potion"}
--- FX COLOR
-  , { 4, 0, true , "fx_fire" }
+    -- UI Colors
+    ui_default    = "#DCDCDC",
+    ui_border     = "#6495ED",
+    ui_hidden     = "#3C3C3C",
+    ui_failure    = { fg = "#FFFFFF", bg = "#DC143C" },
+
+    ui_gold       = "#FFD700",
+    ui_emphasis   = "#FF8C00",
+
+    -- Assets
+    asset_floor   = "#282828",
+    asset_dirt    = "#8B4513",
+    asset_wall    = "#778899",
+    asset_tree    = "#228B22",
+
+    -- Entities
+    entity_player = "#00FFFF",
+    entity_orc    = "#9ACD32",
+    entity_boss   = "#9400D3",
+    entity_slime  = { fg = "#9ACD32", bg = "#055315" },
+
+    -- Items
+    item_gold       = "#FFD700",
+    item_hp_potion  = "#FF6347",
+    item_dmg_potion = "#8A2BE2",
+
+    -- FX
+    fx_fire         = "#FF4500"
 }
 
 help_text = [[
@@ -45,8 +50,6 @@ function get_start_config()
     return {
         start_level = "scripts/levels/forest.lua",
         start_depth = 1,
-        initial_log_message = "Welcome adventurer !",
-        window_width = 100,
-        window_height = 48
+        initial_log_message = "Welcome adventurer !"
     }
 end

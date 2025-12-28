@@ -11,53 +11,60 @@
 #include "script_engine.hpp"
 #include "systems.hpp"
 #include "types.hpp"
+#include <ftxui/dom/elements.hpp>
+#include <ftxui/screen/color.hpp>
+#include <map>
 #include <string>
 #include <vector>
+
+struct ThemeStyle
+{
+  ftxui::Color fg = ftxui::Color::White;
+  ftxui::Color bg = ftxui::Color::Black;
+  bool has_bg = false;
+
+  ftxui::Decorator decorator() const
+  {
+    auto d = ftxui::color(fg);
+    if (has_bg) d = d | ftxui::bgcolor(bg);
+    return d;
+  }
+};
 
 class Renderer
 {
 public:
-  int screen_width;
-  int screen_height;
-
   Renderer();
   ~Renderer();
 
-  void setup_window(ScriptEngine& scripts);
-  void clear_screen();
-  void refresh_screen();
-  void show_error(std::string const& msg);
+  void load_colors(sol::state& lua);
 
-  int get_color(std::string const& name, int def = 1) const;
+  ftxui::Decorator get_style(std::string const& name) const;
+
+  ftxui::Element render_dungeon(Dungeon const& map,
+                                Registry const& reg,
+                                MessageLog const& log,
+                                int player_id,
+                                int depth,
+                                std::string const& title,
+                                std::string const& wall_color,
+                                std::string const& floor_color);
+
+  ftxui::Element render_inventory(std::vector<ItemTag> const& inventory, MessageLog const& log);
+  ftxui::Element render_stats(Registry const& reg, int player_id, std::string player_name, MessageLog const& log);
+  ftxui::Element render_help(MessageLog const& log, std::string const& help_text);
+
+  ftxui::Element render_character_creation(std::string const& current_name, MessageLog const& log);
+  ftxui::Element render_class_selection(std::vector<std::string> const& classes, int selection, MessageLog const& log);
+  ftxui::Element render_game_over(MessageLog const& log);
+  ftxui::Element render_victory(MessageLog const& log);
 
   void animate_projectile(int x, int y, char glyph, std::string const& color);
 
-  void draw_log(MessageLog const& log, int start_y, int max_row, int max_col);
-
-  void draw_dungeon(Dungeon const& map,
-                    Registry const& reg,
-                    MessageLog const& log,
-                    int player_id,
-                    int depth,
-                    int wall_color,
-                    int floor_color,
-                    std::string const& level_name);
-
-  void draw_borders(int x, int y, int width, int height, std::string const& title = "", int separator_y = -1);
-
-  void draw_inventory(std::vector<ItemTag> const& inventory, MessageLog const& log);
-  void draw_stats(Registry const& reg, int player_id, std::string player_name, MessageLog const& log);
-  void draw_help(MessageLog const& log, std::string const& help_text);
-  void draw_character_creation_header(MessageLog const& log);
-  void draw_class_selection(std::vector<std::string> const& class_paths, int selection, MessageLog const& log);
-
-  void draw_game_over(MessageLog const& log);
-  void draw_victory(MessageLog const& log);
-
 private:
-  int clamp(int val, int min, int max);
-  void set_window_size(int w, int h);
+  ftxui::Element draw_log(MessageLog const& log);
+  std::map<std::string, ThemeStyle> style_cache;
+
   int last_cam_x = 0;
   int last_cam_y = 0;
-  sol::state* lua_state = nullptr;
 };
