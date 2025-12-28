@@ -26,7 +26,9 @@ namespace roguey
     discover_assets();
 
     // Global log in LUA
-    lua.new_usertype<MessageLog>("Log", "add", [](MessageLog& l, std::string const& msg) { l.add(msg, "ui_default"); });
+    lua.new_usertype<MessageLog>(
+      "Log", "add",
+      sol::overload([](MessageLog& l, std::string const& msg) { l.add(msg, "ui_default"); }, &MessageLog::add));
 
     sol::protected_function start_cfg_func = lua["get_start_config"];
     configuration = start_cfg_func();
