@@ -17,9 +17,10 @@ namespace roguey
   {
     std::string checked_script_path(std::string_view path)
     {
+      // we expect script files to be located in a directory relative to the current executable location
       namespace fs = std::filesystem;
-      if (!fs::exists(path)) return std::string(path);
       auto complete_path = fs::canonical(path);
+      assert(fs::exists(complete_path));
       return complete_path.string();
     }
 
