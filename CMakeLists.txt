@@ -36,6 +36,15 @@ set(SOURCES
     src/renderer.cpp
     src/script_engine.cpp
     src/systems.cpp
+    src/state_machine.cpp
+    src/states/dungeon.cpp
+    src/states/game_over.cpp
+    src/states/help.cpp
+    src/states/inventory.cpp
+    src/states/setup.cpp
+    src/states/stats.cpp
+    src/states/tick.cpp
+    src/states/victory.cpp
 )
 
 file(GLOB_RECURSE LUA_SCRIPTS "scripts/*.lua")

@@ -10,9 +10,9 @@
 #include "registry.hpp"
 #include "renderer.hpp"
 #include "script_engine.hpp"
+#include "state_machine.hpp"
 #include "systems.hpp"
 #include <ftxui/component/component.hpp>
-#include <optional>
 #include <random>
 #include <vector>
 
@@ -29,35 +29,16 @@ namespace roguey
 
     bool is_running() const { return running; }
 
-  private:
-    void handle_setup_input(ftxui::Event event);
-    void handle_dungeon_input(ftxui::Event event);
-    void handle_inventory_input(ftxui::Event event);
-    void handle_game_over_input(ftxui::Event event);
-    void handle_victory_input(ftxui::Event event);
+    void stop();
 
-    bool update_animation(); // Returns true if redraw is needed
+    // State Transition Helper
+    template<typename T> void set_state(T&& new_state) { machine.transition_to(std::forward<T>(new_state)); }
+
+    // Public Data
+    void set_menu_lock(int frames) { menu_lock = frames; }
 
     void reset(bool full_reset, std::string level_script = "");
-    void spawn_item(int x, int y, std::string script_path);
-    bool spawn_monster(int x, int y, std::string script_path);
 
-    bool debug_mode;
-    bool running;
-
-    // UI State
-    bool is_setup;
-    int setup_step;
-    std::string input_buffer;
-    int class_selection = 0;
-    game_state state = game_state::Dungeon;
-
-    // Input Control
-    bool has_buffered_event = false;
-    ftxui::Event buffered_event;
-    int menu_lock = 0; // Debounce timer for UI transitions
-
-    // Game Data
     dungeon map;
     registry reg;
     renderer renderer;
@@ -65,15 +46,28 @@ namespace roguey
     message_log log;
     std::vector<item_tag> inventory;
 
+    // Persistent Player State
+    int last_dx = 1;
+    int last_dy = 0;
+
     // Level Management
     int depth = 1;
     std::string current_level_script;
 
-    // Input memory
-    int last_dx = 1;
-    int last_dy = 0;
+    // Input Control
+    bool has_buffered_event = false;
+    ftxui::Event buffered_event;
+    int menu_lock = 0;
 
-    // Random Number Generation
+  private:
+    void spawn_item(int x, int y, std::string script_path);
+    bool spawn_monster(int x, int y, std::string script_path);
+
+    bool debug_mode;
+    bool running;
+
+    state_machine machine;
+
     std::random_device random_bits;
     std::mt19937 random_generator;
   };

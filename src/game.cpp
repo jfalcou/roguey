@@ -17,346 +17,33 @@ namespace fs = std::filesystem;
 
 namespace roguey
 {
-  game::game(bool debug) : map(80, 20), debug_mode(debug), scripts{"scripts/game.lua"}, random_generator(random_bits())
+  game::game(bool debug) : debug_mode(debug), map(80, 20), scripts{"scripts/game.lua"}, random_generator(random_bits())
   {
     if (!scripts.is_valid) { exit(1); }
 
-    // UPDATED call to load config (colors + speeds)
     renderer.load_config(scripts.lua);
-
     scripts.lua.set_function("roll", [prng = &random_generator](std::string const& dice) { return roll(dice, *prng); });
 
-    is_setup = true;
-    setup_step = 0;
-    input_buffer = "";
     running = true;
     buffered_event = ftxui::Event::Special({0});
   }
 
   game::~game() {}
 
-  // ... (rest of file remains unchanged)
-  // To save space, assume the rest of the file follows exactly as the previous correct version.
-  // The only change required in src/game.cpp was in the constructor.
+  void game::stop()
+  {
+    running = false;
+  }
 
   ftxui::Element game::render_ui()
   {
-    if (is_setup)
-    {
-      if (setup_step == 0) return renderer.render_character_creation(input_buffer, log);
-      if (setup_step == 1) return renderer.render_class_selection(scripts.class_templates, class_selection, log);
-    }
-
-    if (reg.stats.contains(reg.player_id) && reg.stats[reg.player_id].hp <= 0)
-    {
-      return renderer.render_game_over(log);
-    }
-
-    if (reg.boss_id != 0 && !reg.positions.contains(reg.boss_id)) { return renderer.render_victory(log); }
-
-    if (state == game_state::Dungeon || state == game_state::Animating)
-    {
-      sol::table config = scripts.lua["get_level_config"](depth);
-      std::string level_name = config["name"].get_or<std::string>("Unknown");
-      std::string wall_color = config["wall_color"].get_or<std::string>("asset_wall");
-      std::string floor_color = config["floor_color"].get_or<std::string>("asset_floor");
-
-      return renderer.render_dungeon(map, reg, log, reg.player_id, depth, level_name, wall_color, floor_color);
-    }
-    else if (state == game_state::Inventory) { return renderer.render_inventory(inventory, log); }
-    else if (state == game_state::Stats) { return renderer.render_stats(reg, reg.player_id, reg.player_name, log); }
-    else if (state == game_state::Help)
-    {
-      std::string txt = scripts.lua["help_text"].get_or<std::string>("No help text defined.");
-      return renderer.render_help(log, txt);
-    }
-
-    return ftxui::text("Unknown State");
+    return machine.render(*this);
   }
 
   bool game::on_event(ftxui::Event event)
   {
-    if (event == ftxui::Event::Special({0})) { return update_animation(); }
-
-    if (is_setup)
-    {
-      handle_setup_input(event);
-      return true;
-    }
-
-    if (reg.stats.contains(reg.player_id) && reg.stats[reg.player_id].hp <= 0)
-    {
-      handle_game_over_input(event);
-      return true;
-    }
-
-    if (reg.boss_id != 0 && !reg.positions.contains(reg.boss_id))
-    {
-      handle_victory_input(event);
-      return true;
-    }
-
-    if (state == game_state::Dungeon || state == game_state::Animating) handle_dungeon_input(event);
-    else if (state == game_state::Inventory) handle_inventory_input(event);
-    else
-    {
-      if (menu_lock > 0) return true;
-
-      if (event == ftxui::Event::Escape || event == ftxui::Event::Character('c')) { state = game_state::Dungeon; }
-    }
-    return true;
-  }
-
-  bool game::update_animation()
-  {
-    bool needs_redraw = false;
-
     if (menu_lock > 0) menu_lock--;
-
-    if (reg.stats.contains(reg.player_id))
-    {
-      auto& s = reg.stats[reg.player_id];
-      if (s.action_timer > 0) s.action_timer--;
-
-      if (s.action_timer == 0 && has_buffered_event)
-      {
-        if (state == game_state::Dungeon || state == game_state::Animating)
-        {
-          has_buffered_event = false;
-          handle_dungeon_input(buffered_event);
-          needs_redraw = true;
-        }
-        else has_buffered_event = false;
-      }
-    }
-
-    if (systems::update_projectiles(reg, map, log, scripts.lua)) needs_redraw = true;
-    if (systems::move_monsters(reg, map, log, scripts.lua)) needs_redraw = true;
-
-    if (reg.projectiles.empty())
-    {
-      if (state == game_state::Animating)
-      {
-        state = game_state::Dungeon;
-        needs_redraw = true;
-      }
-    }
-    else state = game_state::Animating;
-
-    return needs_redraw;
-  }
-
-  void game::handle_dungeon_input(ftxui::Event event)
-  {
-    if (!reg.stats.contains(reg.player_id)) return;
-    if (reg.stats[reg.player_id].hp <= 0) return;
-
-    if (event == ftxui::Event::Character('q') || event == ftxui::Event::Character('Q'))
-    {
-      running = false;
-      return;
-    }
-
-    if (event == ftxui::Event::Character('i'))
-    {
-      state = game_state::Inventory;
-      menu_lock = 5;
-      return;
-    }
-    if (event == ftxui::Event::Character('c'))
-    {
-      state = game_state::Stats;
-      menu_lock = 5;
-      return;
-    }
-    if (event == ftxui::Event::Escape)
-    {
-      state = game_state::Help;
-      return;
-    }
-
-    if (reg.stats[reg.player_id].action_timer > 0)
-    {
-      if (event.is_character() || event == ftxui::Event::ArrowUp || event == ftxui::Event::ArrowDown ||
-          event == ftxui::Event::ArrowLeft || event == ftxui::Event::ArrowRight)
-      {
-        buffered_event = event;
-        has_buffered_event = true;
-      }
-      return;
-    }
-
-    int dx = 0, dy = 0;
-    bool acted = false;
-
-    if (event == ftxui::Event::ArrowUp)
-    {
-      dy = -1;
-      acted = true;
-    }
-    else if (event == ftxui::Event::ArrowDown)
-    {
-      dy = +1;
-      acted = true;
-    }
-    else if (event == ftxui::Event::ArrowLeft)
-    {
-      dx = -1;
-      acted = true;
-    }
-    else if (event == ftxui::Event::ArrowRight)
-    {
-      dx = +1;
-      acted = true;
-    }
-    else if (event == ftxui::Event::Character('f'))
-    {
-      systems::cast_fireball(reg, map, last_dx, last_dy, log, scripts.lua);
-      acted = true;
-    }
-
-    if (acted)
-    {
-      auto& s = reg.stats[reg.player_id];
-      s.action_timer = s.action_delay;
-
-      has_buffered_event = false;
-
-      if (dx != 0 || dy != 0)
-      {
-        last_dx = dx;
-        last_dy = dy;
-        position& p = reg.positions[reg.player_id];
-        entity_id target = systems::get_entity_at(reg, p.x + dx, p.y + dy);
-
-        if (target && reg.stats.contains(target)) { systems::attack(reg, reg.player_id, target, log, scripts.lua); }
-        else if (map.is_walkable(p.x + dx, p.y + dy))
-        {
-          p.x += dx;
-          p.y += dy;
-          if (target && reg.items.contains(target))
-          {
-            if (reg.items[target].type == item_type::Stairs)
-            {
-              reset(false, reg.items[target].name);
-              return;
-            }
-
-            if (systems::execute_script(scripts.lua, reg.items[target].script, log))
-            {
-              if (scripts.lua["on_pick"](reg.stats[reg.player_id], log)) { inventory.push_back(reg.items[target]); }
-            }
-            reg.destroy_entity(target);
-          }
-        }
-      }
-
-      map.update_fov(reg.positions[reg.player_id].x, reg.positions[reg.player_id].y,
-                     reg.stats[reg.player_id].fov_range);
-
-      if (!reg.projectiles.empty()) state = game_state::Animating;
-    }
-  }
-
-  void game::handle_setup_input(ftxui::Event event)
-  {
-    if (setup_step == 0)
-    {
-      if (event.is_character()) { input_buffer += event.character(); }
-      else if (event == ftxui::Event::Backspace)
-      {
-        if (!input_buffer.empty()) input_buffer.pop_back();
-      }
-      else if (event == ftxui::Event::Return)
-      {
-        if (!input_buffer.empty())
-        {
-          reg.player_name = input_buffer;
-          log.add("Welcome, " + reg.player_name + "!", "ui_text");
-          setup_step = 1;
-        }
-      }
-    }
-    else if (setup_step == 1)
-    {
-      if (event == ftxui::Event::ArrowUp && class_selection > 0) class_selection--;
-      if (event == ftxui::Event::ArrowDown && class_selection < (int)scripts.class_templates.size() - 1)
-        class_selection++;
-      if (event == ftxui::Event::Return || event == ftxui::Event::Character(' '))
-      {
-        reg.player_class_script = scripts.class_templates[class_selection];
-
-        is_setup = false;
-
-        std::string first_level =
-          scripts.configuration["start_level"].get_or<std::string>("scripts/levels/dungeon.lua");
-        std::string init_msg = scripts.configuration["initial_log_message"].get_or<std::string>("Welcome!");
-
-        log.add(init_msg);
-        reset(true, first_level);
-      }
-    }
-  }
-
-  void game::handle_inventory_input(ftxui::Event event)
-  {
-    if (menu_lock > 0) return;
-
-    if (event == ftxui::Event::Escape || event == ftxui::Event::Character('i'))
-    {
-      state = game_state::Dungeon;
-      return;
-    }
-
-    if (event.is_character())
-    {
-      char ch = event.character()[0];
-      if (ch >= '1' && ch <= '9')
-      {
-        std::size_t idx = ch - '1';
-        if (idx < inventory.size())
-        {
-          auto& item = inventory[idx];
-          if (systems::execute_script(scripts.lua, item.script, log))
-          {
-            sol::protected_function on_use = scripts.lua["on_use"];
-            auto use_res = on_use(reg.stats[reg.player_id], log);
-            if (use_res.valid())
-            {
-              inventory.erase(inventory.begin() + idx);
-              state = game_state::Dungeon;
-            }
-            else
-            {
-              sol::error err = use_res;
-              log.add("Script Error: " + std::string(err.what()), "ui_emphasis");
-            }
-          }
-        }
-      }
-    }
-  }
-
-  void game::handle_game_over_input(ftxui::Event event)
-  {
-    if (event == ftxui::Event::Character('r') || event == ftxui::Event::Character('R'))
-    {
-      sol::table config = scripts.lua["get_start_config"]();
-      std::string start_level = config["start_level"];
-      log.add(config["initial_log_message"]);
-      reset(true, start_level);
-    }
-    if (event == ftxui::Event::Character('q') || event == ftxui::Event::Character('Q')) { running = false; }
-  }
-
-  void game::handle_victory_input(ftxui::Event event)
-  {
-    if (event == ftxui::Event::Character('c') || event == ftxui::Event::Character('C'))
-    {
-      scripts.load_script(current_level_script);
-      reset(false, scripts.lua["get_next_level"](depth));
-    }
-    if (event == ftxui::Event::Character('q') || event == ftxui::Event::Character('Q')) { running = false; }
+    return machine.on_event(*this, event);
   }
 
   void game::spawn_item(int x, int y, std::string script_path)
@@ -426,19 +113,22 @@ namespace roguey
     if (!full_reset)
     {
       saved_stats = reg.stats[reg.player_id];
+      saved_stats.action_timer = 0;
       depth++;
     }
     else
     {
       depth = 1;
       inventory.clear();
-      last_dx = 1;
+      last_dx = 1; // Reset direction on full reset
       last_dy = 0;
     }
     if (!level_script.empty()) current_level_script = level_script;
 
+    // Critical Fixes for Level Transition
     reg.clear();
-    state = game_state::Dungeon;
+    reg.boss_id = 0;            // Ensure no lingering boss ID causes instant victory
+    has_buffered_event = false; // Clear input buffer to prevent accidental moves
 
     systems::execute_script(scripts.lua, current_level_script, log);
     sol::table config = scripts.lua["get_level_config"](depth);

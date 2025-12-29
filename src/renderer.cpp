@@ -228,30 +228,29 @@ namespace roguey
 
     return window(
              text(" Stats ") | get_style("ui_border"),
-             vbox(
-               {filler(),
-                vbox({hbox({text("Name:   "), text(player_name) | get_style("ui_emphasis")}) | center,
-                      hbox({text("Class:  "), text(s.archetype) | get_style("ui_emphasis")}) | center, text(" "),
+             vbox({filler(),
+                   vbox({hbox({text("Name:   "), text(player_name) | get_style("ui_emphasis")}) | flex,
+                         hbox({text("Class:  "), text(s.archetype) | get_style("ui_emphasis")}) | flex, text(" "),
 
-                      hbox({text("Level:  "), text(std::to_string(s.level)) | get_style("ui_gold")}) | center,
-                      hbox({text("XP:     "), text(std::to_string(s.xp)) | get_style("ui_text")}) | center, text(" "),
+                         hbox({text("Level:  "), text(std::to_string(s.level)) | get_style("ui_gold")}) | flex,
+                         hbox({text("XP:     "), text(std::to_string(s.xp)) | get_style("ui_text")}) | flex, text(" "),
 
-                      hbox({text("HP:     "),
-                            text(std::to_string(s.hp) + " / " + std::to_string(s.max_hp)) | get_style("ui_hp")}) |
-                        center,
-                      hbox({text("Mana:   "),
-                            text(std::to_string(s.mana) + " / " + std::to_string(s.max_mana)) | get_style("ui_mp")}) |
-                        center,
-                      text(" "),
+                         hbox({text("HP:     "),
+                               text(std::to_string(s.hp) + " / " + std::to_string(s.max_hp)) | get_style("ui_hp")}) |
+                           flex,
+                         hbox({text("Mana:   "), text(std::to_string(s.mana) + " / " + std::to_string(s.max_mana)) |
+                                                   get_style("ui_mp")}) |
+                           flex,
+                         text(" "),
 
-                      hbox({text("Damage: "), text(std::to_string(s.damage)) | get_style("ui_failure")}) | center,
-                      hbox({text("Speed:  "), text(speed_str) | get_style(speed_color)}) | center,
-                      hbox({text("FOV:    "), text(std::to_string(s.fov_range)) | get_style("ui_text")}) | center,
-                      text(" "),
+                         hbox({text("Damage: "), text(std::to_string(s.damage)) | get_style("ui_failure")}) | flex,
+                         hbox({text("Speed:  "), text(speed_str) | get_style(speed_color)}) | flex,
+                         hbox({text("FOV:    "), text(std::to_string(s.fov_range)) | get_style("ui_text")}) | flex,
+                         text(" "),
 
-                      hbox({text("Gold:   "), text(std::to_string(s.gold)) | get_style("ui_gold")}) | center}) |
-                  center,
-                filler(), separator(), text("[C/ESC] Close") | center, separator(), draw_log(log)})) |
+                         hbox({text("Gold:   "), text(std::to_string(s.gold)) | get_style("ui_gold")}) | flex}) |
+                     center,
+                   filler(), separator(), text("[C/ESC] Close") | center, separator(), draw_log(log)})) |
            flex;
   }
 
