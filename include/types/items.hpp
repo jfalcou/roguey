@@ -10,16 +10,16 @@
 
 namespace roguey
 {
-  enum class ItemType
+  enum class item_type
   {
     Gold,
     Consumable,
     Stairs
   };
 
-  struct ItemTag
+  struct item_tag
   {
-    ItemType type;
+    item_type type;
     int value;
     std::string name;
     std::string script;

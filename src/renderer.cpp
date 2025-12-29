@@ -19,7 +19,7 @@ namespace roguey
   namespace fs = std::filesystem;
   using namespace ftxui;
 
-  void Renderer::load_config(sol::state& lua)
+  void renderer::load_config(sol::state& lua)
   {
     // 1. Load Colors
     sol::table colors = lua["game_colors"];
@@ -27,7 +27,7 @@ namespace roguey
     {
       for (auto const& [key, val] : colors.as<std::map<std::string, sol::object>>())
       {
-        ThemeStyle style;
+        theme_style style;
         if (val.is<std::string>())
         {
           std::string hex = val.as<std::string>();
@@ -75,14 +75,14 @@ namespace roguey
     }
   }
 
-  Decorator Renderer::get_style(std::string const& name) const
+  Decorator renderer::get_style(std::string const& name) const
   {
     auto it = style_cache.find(name);
     if (it != style_cache.end()) { return it->second.decorator(); }
     return color(Color::White);
   }
 
-  Element Renderer::draw_log(MessageLog const& log)
+  Element renderer::draw_log(message_log const& log)
   {
     Elements list;
     int start_index = std::max(0, (int)log.messages.size() - 6);
@@ -95,9 +95,9 @@ namespace roguey
     return vbox(std::move(list)) | size(HEIGHT, EQUAL, 6);
   }
 
-  Element Renderer::render_dungeon(Dungeon const& map,
-                                   Registry const& reg,
-                                   MessageLog const& log,
+  Element renderer::render_dungeon(dungeon const& map,
+                                   registry const& reg,
+                                   message_log const& log,
                                    int player_id,
                                    int depth,
                                    std::string const& title,
@@ -114,7 +114,7 @@ namespace roguey
     if (view_w < 10) view_w = 10;
     if (view_h < 5) view_h = 5;
 
-    Position p = {0, 0};
+    position p = {0, 0};
     if (reg.positions.count(player_id)) p = reg.positions.at(player_id);
 
     int cam_x = std::clamp(p.x - view_w / 2, 0, std::max(0, map.width - view_w));
@@ -145,7 +145,7 @@ namespace roguey
         {
           if (reg.positions.count(id))
           {
-            Position ep = reg.positions.at(id);
+            position ep = reg.positions.at(id);
             if (ep.x == wx && ep.y == wy)
             {
               if (id == player_id || map.visible_tiles.count({wx, wy}))
@@ -188,7 +188,7 @@ namespace roguey
            get_style("ui_border") | flex;
   }
 
-  Element Renderer::render_inventory(std::vector<ItemTag> const& inventory, MessageLog const& log)
+  Element renderer::render_inventory(std::vector<item_tag> const& inventory, message_log const& log)
   {
     Elements items;
     if (inventory.empty()) items.push_back(text("(Empty)") | center);
@@ -206,7 +206,7 @@ namespace roguey
            flex;
   }
 
-  Element Renderer::render_stats(Registry const& reg, int player_id, std::string player_name, MessageLog const& log)
+  Element renderer::render_stats(registry const& reg, int player_id, std::string player_name, message_log const& log)
   {
     if (!reg.stats.contains(player_id)) return text("Error: No Stats");
 
@@ -255,7 +255,7 @@ namespace roguey
            flex;
   }
 
-  Element Renderer::render_help(MessageLog const& log, std::string const& help_text)
+  Element renderer::render_help(message_log const& log, std::string const& help_text)
   {
     Elements lines;
     std::stringstream ss(help_text);
@@ -268,7 +268,7 @@ namespace roguey
            flex;
   }
 
-  Element Renderer::render_character_creation(std::string const& current_name, MessageLog const& log)
+  Element renderer::render_character_creation(std::string const& current_name, message_log const& log)
   {
     return window(text(" Create Your Hero ") | get_style("ui_border"),
                   vbox({filler(), text("Enter your name:") | bold | get_style("ui_emphasis") | center,
@@ -277,9 +277,9 @@ namespace roguey
            get_style("ui_border") | flex;
   }
 
-  Element Renderer::render_class_selection(std::vector<std::string> const& classes,
+  Element renderer::render_class_selection(std::vector<std::string> const& classes,
                                            int selection,
-                                           MessageLog const& log)
+                                           message_log const& log)
   {
     Elements options;
     for (size_t i = 0; i < classes.size(); ++i)
@@ -296,7 +296,7 @@ namespace roguey
            get_style("ui_border") | flex;
   }
 
-  Element Renderer::render_game_over(MessageLog const& log)
+  Element renderer::render_game_over(message_log const& log)
   {
     return window(text(" GAME OVER ") | get_style("ui_failure"),
                   vbox({filler(), text(" !!! YOU DIED !!! ") | bold | center | get_style("ui_failure"),
@@ -304,7 +304,7 @@ namespace roguey
            flex;
   }
 
-  Element Renderer::render_victory(MessageLog const& log)
+  Element renderer::render_victory(message_log const& log)
   {
     return window(text(" VICTORY ") | get_style("ui_gold"),
                   vbox({filler(), text(" !!! VICTORY !!! ") | bold | center | get_style("ui_gold"),

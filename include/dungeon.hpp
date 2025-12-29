@@ -13,16 +13,16 @@
 
 namespace roguey
 {
-  class Dungeon
+  class dungeon
   {
   public:
     int width, height;
     grid2D<char> grid;
     grid2D<bool> explored;
-    std::set<Position> visible_tiles;
-    std::vector<Rect> rooms;
+    std::set<position> visible_tiles;
+    std::vector<rectangle> rooms;
 
-    Dungeon(int w, int h);
+    dungeon(int w, int h);
     void generate(std::mt19937& gen);
     void update_fov(int px, int py, int range);
     bool is_walkable(int x, int y) const;

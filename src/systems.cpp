@@ -13,7 +13,7 @@
 
 namespace roguey
 {
-  namespace Systems
+  namespace systems
   {
     std::string checked_script_path(std::string_view path)
     {
@@ -23,7 +23,7 @@ namespace roguey
       return complete_path.string();
     }
 
-    bool execute_script(sol::state& lua, std::string const& path, MessageLog& log)
+    bool execute_script(sol::state& lua, std::string const& path, message_log& log)
     {
       auto res = lua.safe_script_file(checked_script_path(path), sol::script_pass_on_error);
       if (!res.valid())
@@ -36,7 +36,7 @@ namespace roguey
       return true;
     }
 
-    std::optional<sol::table> try_get_table(sol::state& lua, std::string const& name, MessageLog& log)
+    std::optional<sol::table> try_get_table(sol::state& lua, std::string const& name, message_log& log)
     {
       sol::table t = lua[name];
       if (!t.valid())
@@ -47,9 +47,9 @@ namespace roguey
       return t;
     }
 
-    EntityConfig parse_entity_config(sol::table const& t, std::string_view default_name)
+    entity_data parse_entity_config(sol::table const& t, std::string_view default_name)
     {
-      EntityConfig cfg;
+      entity_data cfg;
 
       // Stats Extraction
       cfg.stats.archetype = t.get_or<std::string>("archetype", "Unknown");
@@ -78,15 +78,15 @@ namespace roguey
     }
   }
 
-  void MessageLog::add(std::string msg, std::string const& color)
+  void message_log::add(std::string msg, std::string const& color)
   {
     messages.push_back({msg, color});
     if (messages.size() > max_messages) messages.erase(messages.begin());
   }
 
-  EntityID Systems::get_entity_at(Registry const& reg, int x, int y, EntityID ignore_id)
+  entity_id systems::get_entity_at(registry const& reg, int x, int y, entity_id ignore_id)
   {
-    EntityID found = 0;
+    entity_id found = 0;
     for (auto const& [id, pos] : reg.positions)
     {
       if (id == ignore_id) continue;
@@ -99,7 +99,7 @@ namespace roguey
     return found;
   }
 
-  void Systems::attack(Registry& reg, EntityID a_id, EntityID d_id, MessageLog& log, sol::state& lua)
+  void systems::attack(registry& reg, entity_id a_id, entity_id d_id, message_log& log, sol::state& lua)
   {
     auto& a = reg.stats[a_id];
     auto& d = reg.stats[d_id];
@@ -127,7 +127,7 @@ namespace roguey
     }
   }
 
-  void Systems::check_level_up(Registry& reg, MessageLog& log, sol::state& lua)
+  void systems::check_level_up(registry& reg, message_log& log, sol::state& lua)
   {
     auto& s = reg.stats[reg.player_id];
     int next_lvl_xp = s.level * 100;
@@ -153,7 +153,7 @@ namespace roguey
         // Use parser to extract updated fields (partially)
         // Note: level_up returns a partial config, so we can re-use the parser
         // effectively treating it as a config object.
-        EntityConfig cfg = parse_entity_config(new_stats_table);
+        entity_data cfg = parse_entity_config(new_stats_table);
 
         s.max_hp = cfg.stats.max_hp;
         s.hp = s.max_hp;
@@ -167,7 +167,7 @@ namespace roguey
     }
   }
 
-  void Systems::cast_fireball(Registry& reg, Dungeon& map, int dx, int dy, MessageLog& log, sol::state& lua)
+  void systems::cast_fireball(registry& reg, dungeon& map, int dx, int dy, message_log& log, sol::state& lua)
   {
     std::string script_path = "scripts/spells/fireball.lua";
 
@@ -196,7 +196,7 @@ namespace roguey
     }
     s.mana -= mana_cost;
 
-    Position p = reg.positions[reg.player_id];
+    position p = reg.positions[reg.player_id];
     int start_x = p.x + dx;
     int start_y = p.y + dy;
 
@@ -206,7 +206,7 @@ namespace roguey
       return;
     }
 
-    EntityID id = reg.create_entity();
+    entity_id id = reg.create_entity();
     reg.positions[id] = p;
     reg.renderables[id] = {glyph, color};
     reg.projectiles[id] = {dx, dy, damage, range, reg.player_id, delay, 0};
@@ -216,9 +216,9 @@ namespace roguey
     log.add("You cast a " + name + "!", color);
   }
 
-  bool Systems::update_projectiles(Registry& reg, Dungeon const& map, MessageLog& log, sol::state& lua)
+  bool systems::update_projectiles(registry& reg, dungeon const& map, message_log& log, sol::state& lua)
   {
-    std::vector<EntityID> to_destroy;
+    std::vector<entity_id> to_destroy;
     bool any_change = false;
 
     for (auto& [id, proj] : reg.projectiles)
@@ -282,7 +282,7 @@ namespace roguey
         continue;
       }
 
-      EntityID target = get_entity_at(reg, tx, ty, id);
+      entity_id target = get_entity_at(reg, tx, ty, id);
       if (target != 0 && target != proj.owner)
       {
         if (reg.stats.contains(target))
@@ -311,10 +311,10 @@ namespace roguey
     return any_change;
   }
 
-  bool Systems::move_monsters(Registry& reg, Dungeon const& map, MessageLog& log, sol::state& lua)
+  bool systems::move_monsters(registry& reg, dungeon const& map, message_log& log, sol::state& lua)
   {
     if (!reg.positions.contains(reg.player_id)) return false;
-    Position p_pos = reg.positions.at(reg.player_id);
+    position p_pos = reg.positions.at(reg.player_id);
     bool any_change = false;
 
     for (auto m_id : reg.monsters)
@@ -333,7 +333,7 @@ namespace roguey
       auto& m_pos = reg.positions[m_id];
       std::string const& script = reg.script_paths[m_id];
 
-      auto script_res = lua.safe_script_file(Systems::checked_script_path(script), sol::script_pass_on_error);
+      auto script_res = lua.safe_script_file(systems::checked_script_path(script), sol::script_pass_on_error);
       if (!script_res.valid()) continue;
 
       sol::protected_function ai_func = lua["update_ai"];

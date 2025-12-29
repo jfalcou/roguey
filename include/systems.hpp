@@ -13,48 +13,48 @@
 
 namespace roguey
 {
-  class Renderer;
+  class renderer;
 
-  struct MessageLog
+  struct message_log
   {
-    struct Entry
+    struct entry
     {
       std::string text;
       std::string color;
     };
 
-    std::vector<Entry> messages;
+    std::vector<entry> messages;
     size_t max_messages = 50;
     void add(std::string msg, std::string const& color = "ui_default");
   };
 
-  namespace Systems
+  namespace systems
   {
 
-    struct EntityConfig
+    struct entity_data
     {
-      Stats stats;
-      Renderable render;
+      stats stats;
+      renderable render;
       std::string name;
       std::string type;
     };
 
-    std::optional<sol::table> try_get_table(sol::state& lua, std::string const& name, MessageLog& log);
-    EntityConfig parse_entity_config(sol::table const& t, std::string_view default_name = "Unknown");
+    std::optional<sol::table> try_get_table(sol::state& lua, std::string const& name, message_log& log);
+    entity_data parse_entity_config(sol::table const& t, std::string_view default_name = "Unknown");
 
     std::string checked_script_path(std::string_view path);
 
-    EntityID get_entity_at(Registry const& reg, int x, int y, EntityID ignore_id = 0);
-    void attack(Registry& reg, EntityID a_id, EntityID d_id, MessageLog& log, sol::state& lua);
-    void check_level_up(Registry& reg, MessageLog& log, sol::state& lua);
-    void cast_fireball(Registry& reg, Dungeon& map, int dx, int dy, MessageLog& log, sol::state& lua);
+    entity_id get_entity_at(registry const& reg, int x, int y, entity_id ignore_id = 0);
+    void attack(registry& reg, entity_id a_id, entity_id d_id, message_log& log, sol::state& lua);
+    void check_level_up(registry& reg, message_log& log, sol::state& lua);
+    void cast_fireball(registry& reg, dungeon& map, int dx, int dy, message_log& log, sol::state& lua);
 
     // Returns true if a visual change occurred (movement, damage, death)
-    bool update_projectiles(Registry& reg, Dungeon const& map, MessageLog& log, sol::state& lua);
+    bool update_projectiles(registry& reg, dungeon const& map, message_log& log, sol::state& lua);
 
     // Returns true if a visual change occurred
-    bool move_monsters(Registry& reg, Dungeon const& map, MessageLog& log, sol::state& lua);
+    bool move_monsters(registry& reg, dungeon const& map, message_log& log, sol::state& lua);
 
-    bool execute_script(sol::state& lua, std::string const& path, MessageLog& log);
+    bool execute_script(sol::state& lua, std::string const& path, message_log& log);
   }
 }

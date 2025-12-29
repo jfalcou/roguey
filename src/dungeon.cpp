@@ -13,9 +13,9 @@
 
 namespace roguey
 {
-  Dungeon::Dungeon(int w, int h) : width(w), height(h), grid(w, h, '#'), explored(w, h, false) {}
+  dungeon::dungeon(int w, int h) : width(w), height(h), grid(w, h, '#'), explored(w, h, false) {}
 
-  void Dungeon::generate(std::mt19937& gen)
+  void dungeon::generate(std::mt19937& gen)
   {
     std::uniform_int_distribution<> dis_w(6, 12), dis_h(4, 7), dis_x(1, width - 13), dis_y(1, height - 8);
     rooms.clear();
@@ -24,14 +24,14 @@ namespace roguey
 
     for (int i = 0; i < 50; ++i)
     {
-      Rect room{dis_x(gen), dis_y(gen), dis_w(gen), dis_h(gen)};
-      if (std::none_of(rooms.begin(), rooms.end(), [&](Rect const& r) { return room.intersects(r); }))
+      rectangle room{dis_x(gen), dis_y(gen), dis_w(gen), dis_h(gen)};
+      if (std::none_of(rooms.begin(), rooms.end(), [&](rectangle const& r) { return room.intersects(r); }))
       {
         for (int y = room.y; y < room.y + room.h; ++y)
           for (int x = room.x; x < room.x + room.w; ++x) grid(x, y) = '.';
         if (!rooms.empty())
         {
-          Position p1 = rooms.back().center(), p2 = room.center();
+          position p1 = rooms.back().center(), p2 = room.center();
           if (gen() % 2)
           {
             carve_h(p1.x, p2.x, p1.y);
@@ -48,22 +48,22 @@ namespace roguey
     }
   }
 
-  void Dungeon::carve_h(int x1, int x2, int y)
+  void dungeon::carve_h(int x1, int x2, int y)
   {
     for (int x = std::min(x1, x2); x <= std::max(x1, x2); ++x) grid(x, y) = '.';
   }
 
-  void Dungeon::carve_v(int y1, int y2, int x)
+  void dungeon::carve_v(int y1, int y2, int x)
   {
     for (int y = std::min(y1, y2); y <= std::max(y1, y2); ++y) grid(x, y) = '.';
   }
 
-  bool Dungeon::is_walkable(int x, int y) const
+  bool dungeon::is_walkable(int x, int y) const
   {
     return y >= 0 && y < height && x >= 0 && x < width && grid(x, y) == '.';
   }
 
-  void Dungeon::update_fov(int px, int py, int range)
+  void dungeon::update_fov(int px, int py, int range)
   {
     visible_tiles.clear();
     for (int i = 0; i < 360; i += 2)

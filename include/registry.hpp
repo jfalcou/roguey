@@ -13,44 +13,44 @@
 
 namespace roguey
 {
-  struct Renderable
+  struct renderable
   {
     char glyph;
     std::string color;
   };
 
-  struct Projectile
+  struct projectile
   {
     int dx, dy;
     int damage;
     int range;
-    EntityID owner;
+    entity_id owner;
     int action_delay = 2;
     int action_timer = 0;
   };
 
-  class Registry
+  class registry
   {
   public:
-    std::map<EntityID, Position> positions;
-    std::map<EntityID, Renderable> renderables;
-    std::map<EntityID, Stats> stats;
-    std::map<EntityID, ItemTag> items;
-    std::map<EntityID, std::string> names;
-    std::map<EntityID, std::string> script_paths;
-    std::map<EntityID, std::string> monster_types;
-    std::map<EntityID, Projectile> projectiles;
+    std::map<entity_id, position> positions;
+    std::map<entity_id, renderable> renderables;
+    std::map<entity_id, stats> stats;
+    std::map<entity_id, item_tag> items;
+    std::map<entity_id, std::string> names;
+    std::map<entity_id, std::string> script_paths;
+    std::map<entity_id, std::string> monster_types;
+    std::map<entity_id, projectile> projectiles;
 
-    std::vector<EntityID> monsters;
-    EntityID player_id = 0;
-    EntityID boss_id = 0;
-    EntityID next_id = 1;
+    std::vector<entity_id> monsters;
+    entity_id player_id = 0;
+    entity_id boss_id = 0;
+    entity_id next_id = 1;
     std::string player_name = "Hero";
     std::string player_class_script;
 
-    EntityID create_entity() { return next_id++; }
+    entity_id create_entity() { return next_id++; }
 
     void clear();
-    void destroy_entity(EntityID id);
+    void destroy_entity(entity_id id);
   };
 }

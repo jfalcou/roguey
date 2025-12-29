@@ -11,7 +11,7 @@
 
 namespace roguey
 {
-  void Registry::destroy_entity(EntityID id)
+  void registry::destroy_entity(entity_id id)
   {
     positions.erase(id);
     renderables.erase(id);
@@ -26,7 +26,7 @@ namespace roguey
     if (id == boss_id) boss_id = 0;
   }
 
-  void Registry::clear()
+  void registry::clear()
   {
     positions.clear();
     renderables.clear();

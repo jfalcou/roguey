@@ -130,8 +130,8 @@ namespace roguey
       }
     }
 
-    if (Systems::update_projectiles(reg, map, log, scripts.lua)) needs_redraw = true;
-    if (Systems::move_monsters(reg, map, log, scripts.lua)) needs_redraw = true;
+    if (systems::update_projectiles(reg, map, log, scripts.lua)) needs_redraw = true;
+    if (systems::move_monsters(reg, map, log, scripts.lua)) needs_redraw = true;
 
     if (reg.projectiles.empty())
     {
@@ -211,7 +211,7 @@ namespace roguey
     }
     else if (event == ftxui::Event::Character('f'))
     {
-      Systems::cast_fireball(reg, map, last_dx, last_dy, log, scripts.lua);
+      systems::cast_fireball(reg, map, last_dx, last_dy, log, scripts.lua);
       acted = true;
     }
 
@@ -226,23 +226,23 @@ namespace roguey
       {
         last_dx = dx;
         last_dy = dy;
-        Position& p = reg.positions[reg.player_id];
-        EntityID target = Systems::get_entity_at(reg, p.x + dx, p.y + dy);
+        position& p = reg.positions[reg.player_id];
+        entity_id target = systems::get_entity_at(reg, p.x + dx, p.y + dy);
 
-        if (target && reg.stats.contains(target)) { Systems::attack(reg, reg.player_id, target, log, scripts.lua); }
+        if (target && reg.stats.contains(target)) { systems::attack(reg, reg.player_id, target, log, scripts.lua); }
         else if (map.is_walkable(p.x + dx, p.y + dy))
         {
           p.x += dx;
           p.y += dy;
           if (target && reg.items.contains(target))
           {
-            if (reg.items[target].type == ItemType::Stairs)
+            if (reg.items[target].type == item_type::Stairs)
             {
               reset(false, reg.items[target].name);
               return;
             }
 
-            if (Systems::execute_script(scripts.lua, reg.items[target].script, log))
+            if (systems::execute_script(scripts.lua, reg.items[target].script, log))
             {
               if (scripts.lua["on_pick"](reg.stats[reg.player_id], log)) { inventory.push_back(reg.items[target]); }
             }
@@ -317,7 +317,7 @@ namespace roguey
         if (idx < inventory.size())
         {
           auto& item = inventory[idx];
-          if (Systems::execute_script(scripts.lua, item.script, log))
+          if (systems::execute_script(scripts.lua, item.script, log))
           {
             sol::protected_function on_use = scripts.lua["on_use"];
             auto use_res = on_use(reg.stats[reg.player_id], log);
@@ -361,23 +361,23 @@ namespace roguey
 
   void game::spawn_item(int x, int y, std::string script_path)
   {
-    if (!Systems::execute_script(scripts.lua, script_path, log)) return;
+    if (!systems::execute_script(scripts.lua, script_path, log)) return;
 
-    auto data_opt = Systems::try_get_table(scripts.lua, "item_data", log);
+    auto data_opt = systems::try_get_table(scripts.lua, "item_data", log);
     if (!data_opt) return;
     sol::table data = *data_opt;
 
-    EntityID id = reg.create_entity();
+    entity_id id = reg.create_entity();
     reg.positions[id] = {x, y};
 
     std::string glyph_str = data["glyph"];
     std::string cid = data.get_or<std::string>("color", "item_gold");
     reg.renderables[id] = {glyph_str[0], cid};
 
-    ItemType kind;
+    item_type kind;
     std::string item_kind = data["kind"];
-    if (item_kind == "consumable") kind = ItemType::Consumable;
-    else if (item_kind == "gold") kind = ItemType::Gold;
+    if (item_kind == "consumable") kind = item_type::Consumable;
+    else if (item_kind == "gold") kind = item_type::Gold;
 
     reg.items[id] = {kind, 0, data["name"], script_path};
     reg.names[id] = data["name"];
@@ -387,9 +387,9 @@ namespace roguey
   {
     if (debug_mode) { log.add("Spawning: " + script_path, "ui_emphasis"); }
 
-    if (!Systems::execute_script(scripts.lua, script_path, log)) return false;
+    if (!systems::execute_script(scripts.lua, script_path, log)) return false;
 
-    EntityID id = reg.create_entity();
+    entity_id id = reg.create_entity();
     reg.positions[id] = {x, y};
     reg.script_paths[id] = script_path;
     reg.monsters.push_back(id);
@@ -406,7 +406,7 @@ namespace roguey
     }
 
     sol::table s = result;
-    auto cfg = Systems::parse_entity_config(s, fs::path(script_path).stem().string());
+    auto cfg = systems::parse_entity_config(s, fs::path(script_path).stem().string());
 
     int start_timer = std::uniform_int_distribution<>(0, cfg.stats.action_delay)(random_generator);
     cfg.stats.action_timer = start_timer;
@@ -422,7 +422,7 @@ namespace roguey
 
   void game::reset(bool full_reset, std::string level_script)
   {
-    Stats saved_stats;
+    stats saved_stats;
     if (!full_reset)
     {
       saved_stats = reg.stats[reg.player_id];
@@ -440,7 +440,7 @@ namespace roguey
     reg.clear();
     state = game_state::Dungeon;
 
-    Systems::execute_script(scripts.lua, current_level_script, log);
+    systems::execute_script(scripts.lua, current_level_script, log);
     sol::table config = scripts.lua["get_level_config"](depth);
 
     map.width = config["width"];
@@ -455,11 +455,11 @@ namespace roguey
 
     if (full_reset)
     {
-      Systems::execute_script(scripts.lua, reg.player_class_script, log);
+      systems::execute_script(scripts.lua, reg.player_class_script, log);
       sol::protected_function init_func = scripts.lua["get_init_stats"];
       sol::table s = init_func();
 
-      auto cfg = Systems::parse_entity_config(s, "Hero");
+      auto cfg = systems::parse_entity_config(s, "Hero");
       reg.stats[reg.player_id] = cfg.stats;
     }
     else { reg.stats[reg.player_id] = saved_stats; }
@@ -471,10 +471,10 @@ namespace roguey
       spawn_monster(map.rooms.back().center().x, map.rooms.back().center().y, scripts.lua["get_boss_script"](depth));
     }
 
-    EntityID stairs = reg.create_entity();
+    entity_id stairs = reg.create_entity();
     reg.positions[stairs] = map.rooms.back().center();
     reg.renderables[stairs] = {'>', "ui_gold"};
-    reg.items[stairs] = {ItemType::Stairs, 0, next_level_path, ""};
+    reg.items[stairs] = {item_type::Stairs, 0, next_level_path, ""};
     reg.names[stairs] = "Stairs";
 
     sol::table monster_weights = scripts.lua["get_spawn_odds"](depth);
@@ -484,7 +484,7 @@ namespace roguey
 
     for (std::size_t i = 1; i < map.rooms.size() - 1; ++i)
     {
-      Position c = map.rooms[i].center();
+      position c = map.rooms[i].center();
       int roll = std::uniform_int_distribution<>(0, 10)(random_generator);
       if (roll < 3)
       {

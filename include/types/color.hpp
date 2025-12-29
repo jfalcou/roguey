@@ -12,7 +12,7 @@
 
 namespace roguey
 {
-  struct ThemeStyle
+  struct theme_style
   {
     ftxui::Color fg = ftxui::Color::White;
     ftxui::Color bg = ftxui::Color::Black;

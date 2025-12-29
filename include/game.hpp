@@ -58,12 +58,12 @@ namespace roguey
     int menu_lock = 0; // Debounce timer for UI transitions
 
     // Game Data
-    Dungeon map;
-    Registry reg;
-    Renderer renderer;
-    ScriptEngine scripts;
-    MessageLog log;
-    std::vector<ItemTag> inventory;
+    dungeon map;
+    registry reg;
+    renderer renderer;
+    script_engine scripts;
+    message_log log;
+    std::vector<item_tag> inventory;
 
     // Level Management
     int depth = 1;

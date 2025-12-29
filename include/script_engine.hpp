@@ -14,7 +14,7 @@
 
 namespace roguey
 {
-  class ScriptEngine
+  class script_engine
   {
   public:
     sol::state lua;
@@ -22,7 +22,7 @@ namespace roguey
     bool is_valid;
     std::vector<std::string> class_templates;
 
-    ScriptEngine(std::string const& main_script);
+    script_engine(std::string const& main_script);
 
     bool load_script(std::string const& path);
     std::string pick_from_weights(sol::table weights, std::mt19937& gen);
