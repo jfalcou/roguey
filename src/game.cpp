@@ -120,7 +120,7 @@ namespace roguey
           handle_dungeon_input(buffered_event);
           needs_redraw = true;
         }
-        else { has_buffered_event = false; }
+        else has_buffered_event = false;
       }
     }
 
@@ -135,7 +135,7 @@ namespace roguey
         needs_redraw = true;
       }
     }
-    else { state = game_state::Animating; }
+    else state = game_state::Animating;
 
     return needs_redraw;
   }
@@ -311,7 +311,6 @@ namespace roguey
         if (idx < inventory.size())
         {
           auto& item = inventory[idx];
-
           if (Systems::execute_script(scripts.lua, item.script, log))
           {
             sol::protected_function on_use = scripts.lua["on_use"];
@@ -358,12 +357,15 @@ namespace roguey
   {
     if (!Systems::execute_script(scripts.lua, script_path, log)) return;
 
+    auto data_opt = Systems::try_get_table(scripts.lua, "item_data", log);
+    if (!data_opt) return;
+    sol::table data = *data_opt;
+
     EntityID id = reg.create_entity();
     reg.positions[id] = {x, y};
-    sol::table data = scripts.lua["item_data"];
-    std::string glyph_str = data["glyph"];
 
-    std::string cid = data["color"].get_or<std::string>("item_gold");
+    std::string glyph_str = data["glyph"];
+    std::string cid = data.get_or<std::string>("color", "item_gold");
     reg.renderables[id] = {glyph_str[0], cid};
 
     ItemType kind;
@@ -392,28 +394,24 @@ namespace roguey
     if (!result.valid())
     {
       sol::error err = result;
-      // Already logging generally, but this is a specific function call error
       if (debug_mode) log.add("Lua Error: " + std::string(err.what()), "ui_failure");
       reg.destroy_entity(id);
       return false;
     }
 
     sol::table s = result;
-    int delay = s.get_or("delay", 10);
-    int start_timer = std::uniform_int_distribution<>(0, delay)(random_generator);
-    reg.stats[id] = {s["type"], s["hp"], s["hp"], 0, 0, s["damage"], 0, 1, 0, 0, delay, start_timer};
+    // REFACTORED: Use shared parser
+    auto cfg = Systems::parse_entity_config(s, fs::path(script_path).stem().string());
 
-    std::string glyph_str = s["glyph"].get<std::string>();
-    char glyph = glyph_str.empty() ? '?' : glyph_str[0];
+    // Randomize initial timer
+    int start_timer = std::uniform_int_distribution<>(0, cfg.stats.action_delay)(random_generator);
+    cfg.stats.action_timer = start_timer;
 
-    std::string cid = s["color"].get_or<std::string>("ui_default");
-    reg.renderables[id] = {glyph, cid};
+    reg.stats[id] = cfg.stats;
+    reg.renderables[id] = cfg.render;
+    reg.names[id] = cfg.name;
 
-    std::string m_type = s["type"];
-    std::string name = s["name"].get_or(fs::path(script_path).stem().string());
-    reg.names[id] = name;
-
-    if (m_type == "boss") reg.boss_id = id;
+    if (cfg.type == "boss") reg.boss_id = id;
 
     return true;
   }
@@ -439,7 +437,6 @@ namespace roguey
     state = game_state::Dungeon;
 
     Systems::execute_script(scripts.lua, current_level_script, log);
-
     sol::table config = scripts.lua["get_level_config"](depth);
 
     map.width = config["width"];
@@ -455,12 +452,12 @@ namespace roguey
     if (full_reset)
     {
       Systems::execute_script(scripts.lua, reg.player_class_script, log);
-
       sol::protected_function init_func = scripts.lua["get_init_stats"];
       sol::table s = init_func();
-      int delay = s.get_or("delay", 4);
-      reg.stats[reg.player_id] = {s["archetype"], s["hp"], s["hp"], s["mp"], s["mp"], s["damage"], 0, 1, 8, 0,
-                                  delay,          0};
+
+      // REFACTORED: Use shared parser
+      auto cfg = Systems::parse_entity_config(s, "Hero");
+      reg.stats[reg.player_id] = cfg.stats;
     }
     else { reg.stats[reg.player_id] = saved_stats; }
 

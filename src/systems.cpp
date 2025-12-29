@@ -13,27 +13,68 @@
 
 namespace roguey
 {
-  namespace fs = std::filesystem;
-
   namespace Systems
   {
     std::string checked_script_path(std::string_view path)
     {
+      namespace fs = std::filesystem;
+      if (!fs::exists(path)) return std::string(path);
       auto complete_path = fs::canonical(path);
       return complete_path.string();
     }
 
-    // New Helper Implementation
     bool execute_script(sol::state& lua, std::string const& path, MessageLog& log)
     {
       auto res = lua.safe_script_file(checked_script_path(path), sol::script_pass_on_error);
       if (!res.valid())
       {
         sol::error err = res;
+        namespace fs = std::filesystem;
         log.add("Script Error (" + fs::path(path).filename().string() + "): " + std::string(err.what()), "ui_failure");
         return false;
       }
       return true;
+    }
+
+    std::optional<sol::table> try_get_table(sol::state& lua, std::string const& name, MessageLog& log)
+    {
+      sol::table t = lua[name];
+      if (!t.valid())
+      {
+        log.add("Lua Error: Table '" + name + "' not found.", "ui_failure");
+        return std::nullopt;
+      }
+      return t;
+    }
+
+    EntityConfig parse_entity_config(sol::table const& t, std::string_view default_name)
+    {
+      EntityConfig cfg;
+
+      // Stats Extraction
+      cfg.stats.archetype = t.get_or<std::string>("archetype", "Unknown");
+      cfg.stats.max_hp = t.get_or("max_hp", t.get_or("hp", 10)); // Allow 'hp' to define max if max_hp missing
+      cfg.stats.hp = t.get_or("hp", cfg.stats.max_hp);
+      cfg.stats.max_mana = t.get_or("max_mp", t.get_or("mp", 0));
+      cfg.stats.mana = t.get_or("mp", cfg.stats.max_mana);
+      cfg.stats.damage = t.get_or("damage", 1);
+      cfg.stats.xp = 0;
+      cfg.stats.level = 1;
+      cfg.stats.fov_range = t.get_or("fov", 8);
+      cfg.stats.gold = 0;
+      cfg.stats.action_delay = t.get_or("delay", 10);
+      cfg.stats.action_timer = 0;
+
+      // Renderable Extraction
+      std::string glyph_str = t.get_or<std::string>("glyph", "?");
+      cfg.render.glyph = glyph_str.empty() ? '?' : glyph_str[0];
+      cfg.render.color = t.get_or<std::string>("color", "ui_default");
+
+      // Meta
+      cfg.name = t.get_or("name", std::string(default_name));
+      cfg.type = t.get_or("type", std::string("entity"));
+
+      return cfg;
     }
   }
 
@@ -94,7 +135,6 @@ namespace roguey
     if (s.xp >= next_lvl_xp)
     {
       s.level++;
-
       if (!execute_script(lua, reg.player_class_script, log)) return;
 
       sol::table current_stats = lua.create_table();
@@ -108,13 +148,20 @@ namespace roguey
 
       if (level_res.valid())
       {
-        sol::table new_stats = level_res;
-        s.max_hp = new_stats["hp"];
+        sol::table new_stats_table = level_res;
+
+        // Use parser to extract updated fields (partially)
+        // Note: level_up returns a partial config, so we can re-use the parser
+        // effectively treating it as a config object.
+        EntityConfig cfg = parse_entity_config(new_stats_table);
+
+        s.max_hp = cfg.stats.max_hp;
         s.hp = s.max_hp;
-        s.max_mana = new_stats["mp"];
+        s.max_mana = cfg.stats.max_mana;
         s.mana = s.max_mana;
-        s.damage = new_stats["damage"];
-        s.action_delay = new_stats.get_or("delay", s.action_delay);
+        s.damage = cfg.stats.damage;
+        s.action_delay = cfg.stats.action_delay;
+
         log.add("Level Up! You are now Level " + std::to_string(s.level), "ui_gold");
       }
     }
@@ -126,12 +173,10 @@ namespace roguey
 
     if (!execute_script(lua, script_path, log)) return;
 
-    sol::table data = lua["spell_data"];
-    if (!data.valid())
-    {
-      log.add("Spell Error: Missing spell_data", "ui_failure");
-      return;
-    }
+    // Use Helper
+    auto data_opt = try_get_table(lua, "spell_data", log);
+    if (!data_opt) return;
+    sol::table data = *data_opt;
 
     int mana_cost = data.get_or("mana_cost", 10);
     int damage = data.get_or("damage", 10);
@@ -212,7 +257,6 @@ namespace roguey
 
       if (reg.script_paths.contains(id))
       {
-        // Keeping this loop fast/silent on errors for now, but could use execute_script if robustness is preferred
         auto script_res = lua.safe_script_file(reg.script_paths[id], sol::script_pass_on_error);
         if (script_res.valid())
         {
@@ -239,7 +283,6 @@ namespace roguey
       }
 
       EntityID target = get_entity_at(reg, tx, ty, id);
-
       if (target != 0 && target != proj.owner)
       {
         if (reg.stats.contains(target))

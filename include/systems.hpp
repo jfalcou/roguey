@@ -30,6 +30,18 @@ namespace roguey
 
   namespace Systems
   {
+
+    struct EntityConfig
+    {
+      Stats stats;
+      Renderable render;
+      std::string name;
+      std::string type;
+    };
+
+    std::optional<sol::table> try_get_table(sol::state& lua, std::string const& name, MessageLog& log);
+    EntityConfig parse_entity_config(sol::table const& t, std::string_view default_name = "Unknown");
+
     std::string checked_script_path(std::string_view path);
 
     EntityID get_entity_at(Registry const& reg, int x, int y, EntityID ignore_id = 0);
