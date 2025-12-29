@@ -167,8 +167,7 @@ namespace roguey
     log.add("You cast a " + name + "!", color);
   }
 
-  void Systems::update_projectiles(
-    Registry& reg, Dungeon const& map, MessageLog& log, sol::state& lua, Renderer* renderer)
+  void Systems::update_projectiles(Registry& reg, Dungeon const& map, MessageLog& log, sol::state& lua)
   {
     std::vector<EntityID> to_destroy;
 
@@ -180,7 +179,16 @@ namespace roguey
         continue;
       }
 
-      if (proj.range <= 0)
+      // Feature Restoration: Delay destruction by one frame after impact
+      // We use range = -1 to signal "I hit something last frame, now remove me"
+      if (proj.range < 0)
+      {
+        to_destroy.push_back(id);
+        continue;
+      }
+
+      // Standard range fizzle
+      if (proj.range == 0)
       {
         log.add(reg.names[id] + " fizzles out.", "ui_default");
         to_destroy.push_back(id);
@@ -190,6 +198,7 @@ namespace roguey
 
       auto& pos = reg.positions[id];
 
+      // Run Lua update script
       if (reg.script_paths.contains(id))
       {
         auto script_res = lua.safe_script_file(reg.script_paths[id], sol::script_pass_on_error);
@@ -208,27 +217,13 @@ namespace roguey
       int tx = pos.x + proj.dx;
       int ty = pos.y + proj.dy;
 
-      if (renderer)
-      {
-        char glyph = '*';
-        std::string color = "ui_default";
-        if (reg.renderables.contains(id))
-        {
-          glyph = reg.renderables[id].glyph;
-          color = reg.renderables[id].color;
-        }
-
-        char restore = map.grid(tx, ty);
-        EntityID other = get_entity_at(reg, tx, ty, id);
-        if (other != 0 && reg.renderables.contains(other)) { restore = reg.renderables[other].glyph; }
-
-        renderer->animate_projectile(tx, ty, glyph, color, restore);
-      }
-
+      // Logic Update
       if (!map.is_walkable(tx, ty))
       {
         log.add(reg.names[id] + " hits a wall.", "ui_default");
-        to_destroy.push_back(id);
+        pos.x = tx;
+        pos.y = ty;      // Move visual to wall for impact frame
+        proj.range = -1; // Destroy NEXT frame
         continue;
       }
 
@@ -248,13 +243,15 @@ namespace roguey
             reg.destroy_entity(target);
           }
         }
-        to_destroy.push_back(id);
-      }
-      else
-      {
         pos.x = tx;
-        pos.y = ty;
+        pos.y = ty;      // Move visual to target for impact frame
+        proj.range = -1; // Destroy NEXT frame
+        continue;
       }
+
+      // No collision, just move
+      pos.x = tx;
+      pos.y = ty;
     }
 
     for (auto id : to_destroy) reg.destroy_entity(id);

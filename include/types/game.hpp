@@ -16,6 +16,7 @@ namespace roguey
     Stats,
     Help,
     GameOver,
-    Victory
+    Victory,
+    Animating
   };
 }

@@ -47,7 +47,7 @@ namespace roguey
 
     if (reg.boss_id != 0 && !reg.positions.contains(reg.boss_id)) { return renderer.render_victory(log); }
 
-    if (state == game_state::Dungeon)
+    if (state == game_state::Dungeon || state == game_state::Animating)
     {
       // RESTORED: Fetch level config for dynamic Title and Colors
       sol::table config = scripts.lua["get_level_config"](depth);
@@ -71,6 +71,20 @@ namespace roguey
 
   bool Game::on_event(ftxui::Event event)
   {
+    // Handle Animation Tick
+    if (event == ftxui::Event::Special({0}))
+    {
+      if (state == game_state::Animating)
+      {
+        update_animation();
+        return true; // Request Redraw
+      }
+      return false; // No redraw needed
+    }
+
+    // Ignore input during animation
+    if (state == game_state::Animating) return false;
+
     if (is_setup)
     {
       handle_setup_input(event);
@@ -220,12 +234,27 @@ namespace roguey
         }
       }
 
-      int max_iter = 20;
-      while (!reg.projectiles.empty() && max_iter-- > 0)
+      // Check if animations need to start
+      if (!reg.projectiles.empty()) { state = game_state::Animating; }
+      else
       {
-        Systems::update_projectiles(reg, map, log, scripts.lua, &renderer);
+        // No animations, finish turn immediately
+        Systems::move_monsters(reg, map, log, scripts.lua);
+        map.update_fov(reg.positions[reg.player_id].x, reg.positions[reg.player_id].y,
+                       reg.stats[reg.player_id].fov_range);
       }
+    }
+  }
 
+  void Game::update_animation()
+  {
+    // Move all projectiles one step
+    Systems::update_projectiles(reg, map, log, scripts.lua);
+
+    // If all projectiles are gone, finish the turn
+    if (reg.projectiles.empty())
+    {
+      state = game_state::Dungeon;
       Systems::move_monsters(reg, map, log, scripts.lua);
       map.update_fov(reg.positions[reg.player_id].x, reg.positions[reg.player_id].y,
                      reg.stats[reg.player_id].fov_range);

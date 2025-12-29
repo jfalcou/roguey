@@ -63,41 +63,6 @@ namespace roguey
     return color(Color::White);
   }
 
-  // UPDATED: Now performs cleanup
-  void Renderer::animate_projectile(int x, int y, char glyph, std::string const& color_key, char restore_glyph)
-  {
-    int rel_x = x - last_cam_x;
-    int rel_y = y - last_cam_y;
-
-    auto dims = Terminal::Size();
-    int overhead_y = 11;
-    int overhead_x = 2;
-    int view_w = dims.dimx - overhead_x;
-    int view_h = dims.dimy - overhead_y;
-
-    if (rel_x < 0 || rel_x >= view_w || rel_y < 0 || rel_y >= view_h) return;
-
-    int screen_row = rel_y + 2;
-    int screen_col = rel_x + 2;
-
-    std::string ansi_color = "\033[37m"; // Default white
-    auto it = style_cache.find(color_key);
-    if (it != style_cache.end()) ansi_color = it->second.ansi_fg;
-
-    // 1. Draw Projectile
-    std::cout << "\0337"
-              << "\033[" << screen_row << ";" << screen_col << "H" << ansi_color << glyph << "\033[0m" << std::flush;
-
-    // 2. Wait
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-    // 3. Cleanup: Draw the restore_glyph (e.g., the floor) over the projectile
-    //    We use default white color for the restore to keep it simple,
-    //    as we don't have the full color context here.
-    std::cout << "\033[" << screen_row << ";" << screen_col << "H"
-              << "\033[0m" << restore_glyph << "\0338" << std::flush;
-  }
-
   Element Renderer::draw_log(MessageLog const& log)
   {
     Elements list;

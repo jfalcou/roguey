@@ -49,8 +49,6 @@ namespace roguey
     ftxui::Element render_game_over(MessageLog const& log);
     ftxui::Element render_victory(MessageLog const& log);
 
-    void animate_projectile(int x, int y, char glyph, std::string const& color, char restore_glyph);
-
   private:
     ftxui::Element draw_log(MessageLog const& log);
     std::map<std::string, ThemeStyle> style_cache;

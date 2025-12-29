@@ -7,11 +7,13 @@
 //==================================================================================================
 
 #include "game.hpp"
+#include <atomic>
+#include <filesystem>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <string>
+#include <thread>
 #include <vector>
-#include <filesystem>
 
 int main(int argc, char* argv[])
 {
@@ -22,25 +24,23 @@ int main(int argc, char* argv[])
     if (arg == "-d") debug = true;
   }
 
-  struct working_dir_is_exe_dir{
-    const std::filesystem::path original_working_dir = std::filesystem::current_path();
+  struct working_dir_is_exe_dir
+  {
+    std::filesystem::path const original_working_dir = std::filesystem::current_path();
 
     explicit working_dir_is_exe_dir(std::string_view exe_path_str)
     {
       // from now on we want all file loading to be relative to this executable's path
       // to achieve this we force the current path to the directory where the executable is located
       namespace fs = std::filesystem;
-      const auto exe_path = fs::canonical(exe_path_str);
-      const auto exe_dir_path = exe_path.parent_path();
+      auto const exe_path = fs::canonical(exe_path_str);
+      auto const exe_dir_path = exe_path.parent_path();
       assert(is_directory(exe_dir_path));
       fs::current_path(exe_dir_path);
     }
 
-    ~working_dir_is_exe_dir()
-    {
-      std::filesystem::current_path(original_working_dir);
-    }
-  } change_working_dir [[maybe_unused]] { argv[0] } ;
+    ~working_dir_is_exe_dir() { std::filesystem::current_path(original_working_dir); }
+  } change_working_dir [[maybe_unused]]{argv[0]};
 
   roguey::Game game(debug);
 
@@ -53,6 +53,18 @@ int main(int argc, char* argv[])
     std::cin >> c;
   }
   auto screen = ftxui::ScreenInteractive::Fullscreen();
+
+  // Background thread to drive animations (approx 20 FPS)
+  std::atomic<bool> tick_running = true;
+  std::thread ticker([&screen, &tick_running]() {
+    while (tick_running)
+    {
+      using namespace std::chrono_literals;
+      std::this_thread::sleep_for(50ms);
+      // Post a Special event {0} to act as a "Tick"
+      screen.PostEvent(ftxui::Event::Special({0}));
+    }
+  });
 
   auto component = ftxui::Renderer([&] { return game.render_ui(); });
 
@@ -77,6 +89,9 @@ int main(int argc, char* argv[])
   });
 
   screen.Loop(component);
+
+  tick_running = false;
+  if (ticker.joinable()) ticker.join();
 
   return 0;
 }
